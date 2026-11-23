@@ -1,135 +1,200 @@
-<!doctype html>
+
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#101827">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Shekh Stock">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icon-192.png">
-<title>Shekh Stock — Inventory</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shekh Stock</title>
 <style>
-:root{--bg:#0b1220;--panel:#121d2e;--panel2:#172438;--line:#26364d;--text:#edf3fb;--muted:#8ea0b8;--blue:#5488ff;--cyan:#39c6d6;--green:#36c995;--orange:#ffb454;--red:#ff6d7d;--shadow:0 14px 40px #0003}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Arial}
-button,input,select{font:inherit}button{cursor:pointer}.app{min-height:100vh;display:flex}
-.sidebar{width:246px;background:#0e1929;border-right:1px solid var(--line);padding:24px 16px;display:flex;flex-direction:column;flex-shrink:0}
-.brand{display:flex;align-items:center;gap:11px;padding:0 10px 28px}.logo{width:39px;height:39px;border-radius:13px;background:linear-gradient(135deg,#4f86ff,#32c6d4);display:grid;place-items:center;font-weight:900;color:white;font-size:17px;box-shadow:0 7px 20px #3977ff55}.brand b{font-size:17px;letter-spacing:.2px}.brand small{display:block;color:var(--muted);font-size:11px;margin-top:1px}
-.navlabel{color:#64758d;text-transform:uppercase;font-size:10px;letter-spacing:1.4px;padding:12px 12px 8px;font-weight:800}
-.nav{display:flex;align-items:center;gap:12px;width:100%;border:0;background:transparent;color:#9dafc6;text-align:left;padding:12px;border-radius:11px;margin:2px 0;font-weight:600}
-.nav .ico{width:19px;text-align:center;font-size:17px}.nav.active{background:#1b3152;color:#fff;box-shadow:inset 3px 0 #5c91ff}.nav:hover{background:#172940;color:white}
-.sidebottom{margin-top:auto;border-top:1px solid var(--line);padding:16px 8px 0;color:var(--muted);font-size:11px}
-.main{min-width:0;flex:1}.topbar{height:76px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 32px;gap:16px;background:#0e1929cc;position:sticky;top:0;z-index:5;backdrop-filter:blur(14px)}
-.top-left{display:flex;align-items:center;gap:12px}.eyebrow{color:var(--muted);font-size:11px}.pageTitle{font-weight:750;font-size:17px}
-.top-right{display:flex;align-items:center;gap:12px}.select,.search,input,select{background:#101c2d;border:1px solid var(--line);color:var(--text);border-radius:10px;padding:10px 12px;outline:none}.select{min-width:150px}.avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:#253e62;color:#cfe0ff;font-weight:800}
-.content{padding:28px 32px 100px;max-width:1500px;margin:auto}.welcome{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:23px}.welcome h1{font-size:25px;margin:0 0 5px;letter-spacing:-.5px}.welcome p{margin:0;color:var(--muted)}
-.btn{border:0;border-radius:10px;padding:11px 15px;background:var(--blue);color:white;font-weight:700;box-shadow:0 7px 18px #5488ff33}.btn:hover{filter:brightness(1.1)}.btn.ghost{background:#1b2a40;color:#cbd8e9;box-shadow:none;border:1px solid var(--line)}.btn.small{padding:8px 11px;font-size:12px}
-.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px;margin-bottom:18px}.stat,.panel{background:linear-gradient(145deg,#142136,#111c2d);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
-.stat{padding:18px;position:relative;overflow:hidden}.stat:after{content:"";position:absolute;width:85px;height:85px;border-radius:50%;right:-25px;top:-28px;background:var(--glow);opacity:.10}
-.stathead{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px}.staticon{width:33px;height:33px;border-radius:10px;display:grid;place-items:center;background:#20334e;color:var(--accent);font-size:16px}.statnum{font-size:27px;font-weight:800;margin-top:13px;letter-spacing:-.6px}.statfoot{color:var(--muted);font-size:11px;margin-top:5px}
-.cols{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(270px,.9fr);gap:16px;margin-bottom:16px}.panel{padding:19px}.panelhead{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}.panelhead h2{font-size:15px;margin:0}.muted{color:var(--muted)}.chart{height:190px;display:flex;align-items:end;gap:12px;padding:10px 8px 0;border-bottom:1px solid var(--line);background:repeating-linear-gradient(to bottom,transparent 0,transparent 46px,#26364d66 47px)}
-.barcol{flex:1;height:100%;display:flex;flex-direction:column;justify-content:end;align-items:center;gap:8px;min-width:0}.bar{width:min(30px,70%);border-radius:7px 7px 2px 2px;background:linear-gradient(180deg,#59a0ff,#416de1);min-height:5px}.bar.alt{background:linear-gradient(180deg,#43d3d0,#2397a9)}.barlabel{font-size:10px;color:var(--muted);padding-bottom:8px}
-.activity{display:flex;flex-direction:column;gap:14px}.activityrow{display:flex;align-items:center;gap:11px}.dot{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:#20334e}.activityrow b{font-size:12px}.activityrow small{display:block;color:var(--muted);font-size:10px;margin-top:2px}.activityrow strong{margin-left:auto;font-size:12px}
-.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;white-space:nowrap}th{text-align:left;color:#71849d;font-size:10px;text-transform:uppercase;letter-spacing:.8px;font-weight:800;padding:11px 9px;border-bottom:1px solid var(--line)}td{padding:13px 9px;border-bottom:1px solid #26364d88;font-size:12px}tbody tr:last-child td{border-bottom:0}.prod{display:flex;align-items:center;gap:10px}.prodicon{width:34px;height:34px;border-radius:10px;background:#20334e;display:grid;place-items:center;font-size:16px}.prod b{display:block;font-size:12px}.prod small{color:var(--muted);font-size:10px}.pill{padding:4px 8px;border-radius:20px;font-size:10px;font-weight:800}.good{background:#143d36;color:#5be0b0}.low{background:#49361d;color:#ffc56c}.out{background:#482530;color:#ff8291}
-.page{display:none}.page.active{display:block}.sectiontitle{font-size:22px;margin:0 0 5px}.sectiondesc{color:var(--muted);margin:0 0 20px}
-.toolbar{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}.toolbar .search{width:min(320px,100%)}
-.formpanel{max-width:720px}.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field label{display:block;color:var(--muted);font-size:11px;margin:0 0 6px}.field input,.field select{width:100%}.field.full{grid-column:1/-1}.formactions{display:flex;gap:9px;margin-top:18px}
-.mobileNav{display:none}
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#e9f3ff;color:#14243b;padding:11px 16px;border-radius:12px;box-shadow:var(--shadow);display:none;z-index:20;font-weight:700}
-@media(max-width:1050px){.sidebar{width:210px}.content{padding:23px 22px 100px}.topbar{padding:0 22px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:720px){.app{display:block}.sidebar{display:none}.topbar{height:62px;padding:0 15px}.topbar .eyebrow{display:none}.topbar .pageTitle{font-size:15px}.select{min-width:0;max-width:145px;padding:8px;font-size:11px}.content{padding:20px 14px 100px}.welcome{align-items:flex-start;flex-direction:column}.welcome h1{font-size:22px}.welcome .btn{width:100%}.stats{gap:10px}.stat{padding:14px}.statnum{font-size:23px}.stathead{font-size:10px}.staticon{width:29px;height:29px}.cols{grid-template-columns:1fr}.panel{padding:15px}.mobileNav{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:10;background:#101c2d;border-top:1px solid var(--line);padding:8px 5px calc(8px + env(safe-area-inset-bottom));justify-content:space-around;backdrop-filter:blur(16px)}.mobileNav button{border:0;background:none;color:#8295ad;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9px;padding:5px 8px}.mobileNav button span{font-size:18px}.mobileNav button.active{color:#78a4ff}.formgrid{grid-template-columns:1fr}.field.full{grid-column:auto}.toolbar .search{width:100%}.toolbar{align-items:stretch}.chart{height:160px}}
-</style></head>
+*{box-sizing:border-box}
+body{margin:0;background:#0b1220;color:#edf3fb;font:14px Arial}
+header{background:#142136;padding:18px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+header h2{margin:0;color:#75a5ff}
+nav{display:flex;gap:7px;flex-wrap:wrap;padding:12px;background:#101c2d}
+button{background:#315fba;color:white;border:0;border-radius:8px;padding:11px;cursor:pointer}
+nav button{background:#20334e}
+main{padding:18px;max-width:1100px;margin:auto}
+section{display:none}
+section.active{display:block}
+.panel{background:#142136;border:1px solid #293a52;border-radius:12px;padding:16px;margin:14px 0}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.card{background:#1b2b43;padding:15px;border-radius:10px}
+.card small{color:#a9bad0}
+.num{font-size:25px;font-weight:bold;margin-top:8px}
+input,select,textarea{width:100%;padding:11px;margin:5px 0 13px;background:#101c2d;color:white;border:1px solid #40516b;border-radius:8px}
+label{display:block;color:#a9bad0;margin-top:8px}
+table{width:100%;border-collapse:collapse;min-width:600px}
+th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
+.tablewrap{overflow:auto}
+.muted{color:#9aacc3}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:650px){.cards{grid-template-columns:1fr 1fr}.row{grid-template-columns:1fr}main{padding:12px}header{padding:14px}}
+</style>
+</head>
 <body>
-<div class="app">
-<aside class="sidebar">
- <div class="brand"><div class="logo">S</div><div><b>SHEKH STOCK</b><small>Inventory management</small></div></div>
- <div class="navlabel">Workspace</div>
- <button class="nav active" data-page="dashboard"><span class="ico">▦</span>Dashboard</button>
- <button class="nav" data-page="inventory"><span class="ico">▤</span>Inventory</button>
- <button class="nav" data-page="stockin"><span class="ico">＋</span>Stock In</button>
- <button class="nav" data-page="stockout"><span class="ico">－</span>Stock Out</button>
- <button class="nav" data-page="transfers"><span class="ico">⇄</span>Stock Transfer</button>
- <div class="navlabel">Management</div>
- <button class="nav" data-page="reports"><span class="ico">▥</span>Reports</button>
- <div class="sidebottom">Offline demo • Data stored on this device</div>
-</aside>
-<main class="main">
- <div class="topbar"><div class="top-left"><div><div class="eyebrow">SHEKH STOCK / WORKSPACE</div><div class="pageTitle" id="topTitle">Dashboard</div></div></div>
- <div class="top-right"><select class="select" id="location"><option>Main Godown</option><option>Shop 1</option><option>Shop 2</option><option>Shop 3</option></select><div class="avatar">S</div></div></div>
- <div class="content">
-  <section class="page active" id="dashboard">
-   <div class="welcome"><div><h1>Good day 👋</h1><p class="muted">Here’s what’s happening with your stock today.</p></div><button class="btn" onclick="go('inventory')">＋ Add product</button></div>
-   <div class="stats">
-    <div class="stat" style="--glow:#5488ff;--accent:#77a5ff"><div class="stathead">Total products <span class="staticon">▤</span></div><div class="statnum" id="sProducts">04</div><div class="statfoot">Unique items in inventory</div></div>
-    <div class="stat" style="--glow:#39c6d6;--accent:#39c6d6"><div class="stathead">Total stock units <span class="staticon">▦</span></div><div class="statnum" id="sUnits">248</div><div class="statfoot">Across selected location</div></div>
-    <div class="stat" style="--glow:#ffb454;--accent:#ffb454"><div class="stathead">Low stock items <span class="staticon">⚠</span></div><div class="statnum" id="sLow">02</div><div class="statfoot">At or below 5 units</div></div>
-    <div class="stat" style="--glow:#36c995;--accent:#36c995"><div class="stathead">Stock movements <span class="staticon">⇄</span></div><div class="statnum" id="sMoves">12</div><div class="statfoot">Recorded in this demo</div></div>
-   </div>
-   <div class="cols">
-    <div class="panel"><div class="panelhead"><h2>Stock movement overview</h2><span class="muted" style="font-size:10px">Last 7 days</span></div>
-     <div class="chart"><div class="barcol"><div class="bar" style="height:38%"></div><div class="barlabel">Mon</div></div><div class="barcol"><div class="bar alt" style="height:65%"></div><div class="barlabel">Tue</div></div><div class="barcol"><div class="bar" style="height:48%"></div><div class="barlabel">Wed</div></div><div class="barcol"><div class="bar alt" style="height:82%"></div><div class="barlabel">Thu</div></div><div class="barcol"><div class="bar" style="height:55%"></div><div class="barlabel">Fri</div></div><div class="barcol"><div class="bar alt" style="height:72%"></div><div class="barlabel">Sat</div></div><div class="barcol"><div class="bar" style="height:42%"></div><div class="barlabel">Sun</div></div></div>
-     <div style="display:flex;gap:18px;margin-top:13px;font-size:10px;color:var(--muted)"><span>🔵 Stock In</span><span>🟢 Stock Out</span></div>
-    </div>
-    <div class="panel"><div class="panelhead"><h2>Recent activity</h2><span class="muted" style="font-size:10px">Latest updates</span></div>
-     <div class="activity" id="activity"><div class="activityrow"><div class="dot">＋</div><div><b>USB-C Cable</b><small>Stock received • Main Godown</small></div><strong style="color:var(--green)">+20</strong></div><div class="activityrow"><div class="dot">－</div><div><b>Tempered Glass</b><small>Stock issued • Shop 1</small></div><strong style="color:var(--red)">−5</strong></div><div class="activityrow"><div class="dot">⇄</div><div><b>Charger 20W</b><small>Transfer • Godown to Shop 2</small></div><strong>8 units</strong></div></div>
-    </div>
-   </div>
-   <div class="panel"><div class="panelhead"><h2>Low stock alerts</h2><button class="btn ghost small" onclick="go('inventory')">View inventory →</button></div><div class="tablewrap"><table><thead><tr><th>Product</th><th>SKU</th><th>Available</th><th>Status</th></tr></thead><tbody id="lowRows"></tbody></table></div></div>
-  </section>
-  <section class="page" id="inventory"><h1 class="sectiontitle">Inventory</h1><p class="sectiondesc">Manage products and available quantities.</p>
-   <div class="toolbar"><input class="search" id="search" placeholder="⌕  Search product or SKU…"><button class="btn" onclick="showAdd()">＋ Add product</button></div>
-   <div class="panel"><div class="tablewrap"><table><thead><tr><th>Product</th><th>SKU / Barcode</th><th>Quantity</th><th>Status</th><th>Action</th></tr></thead><tbody id="inventoryRows"></tbody></table></div></div>
-  </section>
-  <section class="page" id="stockin"><h1 class="sectiontitle">Stock In</h1><p class="sectiondesc">Record new stock received into a location.</p>
-   <div class="panel formpanel"><div class="panelhead"><h2>Receive stock</h2><span class="pill good">INWARD</span></div><form id="inForm" class="formgrid"><div class="field full"><label>Product</label><select id="inProduct" required></select></div><div class="field"><label>Quantity received</label><input id="inQty" type="number" min="1" required placeholder="Enter quantity"></div><div class="field"><label>Reference / note (optional)</label><input id="inNote" placeholder="Purchase or supplier note"></div><div class="field full formactions"><button class="btn">Save stock in</button></div></form></div>
-  </section>
-  <section class="page" id="stockout"><h1 class="sectiontitle">Stock Out</h1><p class="sectiondesc">Record stock issued or removed from a location.</p>
-   <div class="panel formpanel"><div class="panelhead"><h2>Issue stock</h2><span class="pill out">OUTWARD</span></div><form id="outForm" class="formgrid"><div class="field full"><label>Product</label><select id="outProduct" required></select></div><div class="field"><label>Quantity issued</label><input id="outQty" type="number" min="1" required placeholder="Enter quantity"></div><div class="field"><label>Reason / note (optional)</label><input id="outNote" placeholder="Sale, damage, use…"></div><div class="field full formactions"><button class="btn">Save stock out</button></div></form></div>
-  </section>
-  <section class="page" id="transfers"><h1 class="sectiontitle">Stock Transfer</h1><p class="sectiondesc">Move stock between your godown and shops.</p>
-   <div class="panel formpanel"><div class="panelhead"><h2>New transfer</h2><span class="pill" style="background:#1c3557;color:#8db9ff">TRANSFER</span></div><form id="transferForm" class="formgrid"><div class="field full"><label>Product</label><select id="trProduct" required></select></div><div class="field"><label>From</label><select id="fromLoc"><option>Main Godown</option><option>Shop 1</option><option>Shop 2</option><option>Shop 3</option></select></div><div class="field"><label>To</label><select id="toLoc"><option>Shop 1</option><option>Shop 2</option><option>Shop 3</option><option>Main Godown</option></select></div><div class="field full"><label>Quantity</label><input id="trQty" type="number" min="1" required placeholder="Enter quantity"></div><div class="field full formactions"><button class="btn">Complete transfer</button></div></form></div>
-  </section>
-  <section class="page" id="reports"><h1 class="sectiontitle">Reports</h1><p class="sectiondesc">A quick summary of your current inventory.</p><div class="stats"><div class="stat"><div class="stathead">Products</div><div class="statnum" id="rProducts">4</div></div><div class="stat"><div class="stathead">Units</div><div class="statnum" id="rUnits">248</div></div><div class="stat"><div class="stathead">Low stock</div><div class="statnum" id="rLow">2</div></div><div class="stat"><div class="stathead">Movements</div><div class="statnum" id="rMoves">12</div></div></div><div class="panel"><div class="panelhead"><h2>Inventory report</h2><button class="btn ghost small" id="csv">Export CSV ↓</button></div><div class="tablewrap"><table><thead><tr><th>Product</th><th>SKU</th><th>Qty</th><th>Stock status</th></tr></thead><tbody id="reportRows"></tbody></table></div></div></section>
- </div>
-</main></div>
-<nav class="mobileNav"><button class="active" data-page="dashboard"><span>▦</span>Home</button><button data-page="inventory"><span>▤</span>Stock</button><button data-page="stockin"><span>＋</span>Stock In</button><button data-page="stockout"><span>－</span>Stock Out</button><button data-page="transfers"><span>⇄</span>Transfer</button></nav>
-<div class="toast" id="toast"></div>
+<header>
+<h2>SHEKH STOCK</h2>
+<select id="locationFilter" onchange="render()">
+<option>All Locations</option><option>Main Godown</option><option>Shop 1</option><option>Shop 2</option><option>Shop 3</option>
+</select>
+</header>
+<nav>
+<button onclick="show('dashboard')">Dashboard</button>
+<button onclick="show('products')">Products</button>
+<button onclick="show('stock')">Stock In</button>
+<button onclick="show('transfer')">Transfer</button>
+<button onclick="show('history')">Transfer History</button>
+</nav>
+<main>
+<section id="dashboard" class="active">
+<h2>Dashboard</h2>
+<p class="muted">Location-wise stock overview</p>
+<div class="cards">
+<div class="card"><small>Products</small><div class="num" id="totalProducts">0</div></div>
+<div class="card"><small>Mobile IMEIs</small><div class="num" id="totalMobiles">0</div></div>
+<div class="card"><small>Accessory Units</small><div class="num" id="totalAccessories">0</div></div>
+<div class="card"><small>Transfers</small><div class="num" id="totalTransfers">0</div></div>
+</div>
+<div class="panel"><h3>Shop-wise Stock</h3><div class="tablewrap"><table><thead><tr><th>Location</th><th>Mobile IMEIs</th><th>Accessory Units</th></tr></thead><tbody id="locationRows"></tbody></table></div></div>
+<div class="panel"><h3>Recent Transfers</h3><div id="recent"></div></div>
+</section>
+<section id="products">
+<h2>Product Management</h2>
+<p class="muted">Mobiles are tracked by individual IMEI. Accessories by quantity.</p>
+<div class="panel">
+<h3>Add Product</h3>
+<form id="productForm">
+<label>Product Type</label>
+<select id="pType" onchange="toggleType()"><option value="mobile">Mobile</option><option value="accessory">Accessory</option></select>
+<label>Product Name</label><input id="pName" required placeholder="Samsung Galaxy A54 / Charger">
+<label>Brand</label><input id="pBrand" placeholder="Brand">
+<label>Model / Category</label><input id="pModel" placeholder="Model or category">
+<label>Barcode / SKU</label><input id="pBarcode" placeholder="Optional">
+<label>Opening Location</label><select id="pLocation"><option>Main Godown</option><option>Shop 1</option><option>Shop 2</option><option>Shop 3</option></select>
+<div id="mobileFields"><label>IMEI (one per line, 15 digits)</label><textarea id="pImeis" rows="3"></textarea></div>
+<div id="accessoryFields" style="display:none"><label>Opening Quantity</label><input id="pQty" type="number" min="0" value="0"></div>
+<button type="submit">Save Product</button>
+</form>
+</div>
+<div class="panel"><h3>Product Stock</h3>
+<input id="search" placeholder="Search product or IMEI" oninput="render()">
+<div class="tablewrap"><table><thead><tr><th>Product</th><th>Type</th><th>IMEI / Barcode</th><th>Location</th><th>Stock</th></tr></thead><tbody id="productRows"></tbody></table></div>
+</div>
+</section>
+<section id="stock">
+<h2>Stock In</h2><div class="panel">
+<form id="stockForm">
+<label>Product</label><select id="stockProduct"></select>
+<label>Location</label><select id="stockLocation"><option>Main Godown</option><option>Shop 1</option><option>Shop 2</option><option>Shop 3</option></select>
+<div id="stockMobile"><label>New IMEI (one per line)</label><textarea id="stockImeis" rows="3"></textarea></div>
+<div id="stockAccessory" style="display:none"><label>Quantity</label><input id="stockQty" type="number" min="1"></div>
+<button type="submit">Add Stock</button>
+</form></div>
+</section>
+<section id="transfer">
+<h2>Transfer Stock</h2><div class="panel">
+<form id="transferForm">
+<label>Product</label><select id="transferProduct"></select>
+<div class="row">
+<div><label>From</label><select id="fromLocation"><option>Main Godown</option><option>Shop 1</option><option>Shop 2</option><option>Shop 3</option></select></div>
+<div><label>To</label><select id="toLocation"><option>Shop 1</option><option>Shop 2</option><option>Shop 3</option><option>Main Godown</option></select></div>
+</div>
+<div id="transferMobile"><label>Select IMEI</label><select id="transferImei"></select></div>
+<div id="transferAccessory" style="display:none"><label>Quantity</label><input id="transferQty" type="number" min="1"></div>
+<label>Transferred By</label><input id="transferStaff" required placeholder="Staff name">
+<label>Note</label><input id="transferNote" placeholder="Optional">
+<button type="submit">Complete Transfer</button>
+</form></div>
+</section>
+<section id="history">
+<h2>Transfer History</h2><p class="muted">Every transfer is recorded with date and time.</p>
+<div class="panel">
+<input id="historySearch" placeholder="Search IMEI, shop or staff" oninput="renderHistory()">
+<div class="tablewrap"><table><thead><tr><th>Date & Time</th><th>Product</th><th>IMEI / Qty</th><th>From</th><th>To</th><th>Transferred By</th></tr></thead><tbody id="historyRows"></tbody></table></div>
+</div>
+</section>
+</main>
 <script>
-const KEY='shekh-stock-responsive-v1';
-let products;
-try{products=JSON.parse(localStorage.getItem(KEY)||'null')}catch{}
-if(!Array.isArray(products))products=[
-{id:1,name:'USB-C Cable',sku:'ACC-001',qty:86,icon:'🔌'},
-{id:2,name:'20W Fast Charger',sku:'CHR-020',qty:42,icon:'🔋'},
-{id:3,name:'Tempered Glass',sku:'GLS-005',qty:4,icon:'📱'},
-{id:4,name:'Bluetooth Earbuds',sku:'AUD-014',qty:116,icon:'🎧'}
-];
-let moves=JSON.parse(localStorage.getItem(KEY+'-moves')||'[]');
+const KEY="shekh-stock-v3";
+const locations=["Main Godown","Shop 1","Shop 2","Shop 3"];
+let db;
+try{db=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!db)db={products:[],devices:[],accessories:[],transfers:[]};
 const $=id=>document.getElementById(id);
-function save(){localStorage.setItem(KEY,JSON.stringify(products));localStorage.setItem(KEY+'-moves',JSON.stringify(moves))}
-function toast(s){let t=$('toast');t.textContent=s;t.style.display='block';clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.style.display='none',2300)}
-function status(q){return q===0?'<span class="pill out">Out of stock</span>':q<=5?'<span class="pill low">Low stock</span>':'<span class="pill good">In stock</span>'}
-function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function row(p,action=true){return `<tr><td><div class="prod"><div class="prodicon">${p.icon||'📦'}</div><div><b>${esc(p.name)}</b><small>Inventory item</small></div></div></td><td>${esc(p.sku||'—')}</td><td><b>${p.qty}</b></td><td>${status(p.qty)}</td>${action?`<td><button class="btn ghost small" onclick="quickChange(${p.id},1)">＋</button> <button class="btn ghost small" onclick="quickChange(${p.id},-1)">－</button></td>`:''}</tr>`}
-function render(){
- let total=products.reduce((a,p)=>a+p.qty,0),low=products.filter(p=>p.qty<=5);
- $('sProducts').textContent=products.length;$('sUnits').textContent=total;$('sLow').textContent=low.length;$('sMoves').textContent=moves.length+12;
- $('rProducts').textContent=products.length;$('rUnits').textContent=total;$('rLow').textContent=low.length;$('rMoves').textContent=moves.length+12;
- $('inventoryRows').innerHTML=products.filter(p=>(p.name+' '+p.sku).toLowerCase().includes(($('search')?.value||'').toLowerCase())).map(p=>row(p)).join('');
- $('lowRows').innerHTML=low.length?low.map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(p.sku)}</td><td>${p.qty}</td><td>${status(p.qty)}</td></tr>`).join(''):'<tr><td colspan="4" class="muted">No low-stock items 🎉</td></tr>';
- $('reportRows').innerHTML=products.map(p=>row(p,false)).join('');
- ['inProduct','outProduct','trProduct'].forEach(id=>$(id).innerHTML=products.map(p=>`<option value="${p.id}">${esc(p.name)} — ${p.qty} units</option>`).join(''));
- $('activity').innerHTML=(moves.slice(-4).reverse().map(m=>`<div class="activityrow"><div class="dot">${m.type==='IN'?'＋':m.type==='OUT'?'－':'⇄'}</div><div><b>${esc(m.name)}</b><small>${esc(m.note||m.type+' • '+m.location)}</small></div><strong style="color:${m.type==='IN'?'var(--green)':m.type==='OUT'?'var(--red)':'var(--blue)'}">${m.type==='IN'?'+':m.type==='OUT'?'−':''}${m.qty}</strong></div>`).join('')||'<span class="muted">No new activity yet.</span>');
+const save=()=>localStorage.setItem(KEY,JSON.stringify(db));
+const esc=s=>String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const product=id=>db.products.find(p=>p.id===id);
+const pname=p=>[p.brand,p.name,p.model].filter(Boolean).join(" ");
+const now=()=>new Date().toISOString();
+const date=d=>new Date(d).toLocaleString();
+function show(id){document.querySelectorAll("main section").forEach(s=>s.classList.remove("active"));$(id).classList.add("active");render()}
+function toggleType(){let m=$("pType").value==="mobile";$("mobileFields").style.display=m?"block":"none";$("accessoryFields").style.display=m?"none":"block"}
+function addOptions(){let opts=db.products.map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");$("stockProduct").innerHTML=opts;$("transferProduct").innerHTML=opts;syncStock();syncTransfer()}
+function syncStock(){let p=product($("stockProduct").value),m=p&&p.type==="mobile";$("stockMobile").style.display=m?"block":"none";$("stockAccessory").style.display=m?"none":"block"}
+function syncTransfer(){let p=product($("transferProduct").value),m=p&&p.type==="mobile";$("transferMobile").style.display=m?"block":"none";$("transferAccessory").style.display=m?"none":"block";let from=$("fromLocation").value;$("transferImei").innerHTML=db.devices.filter(d=>d.productId===p?.id&&d.location===from).map(d=>`<option value="${d.id}">${d.imei}</option>`).join("")}
+$("stockProduct").onchange=syncStock;$("transferProduct").onchange=syncTransfer;$("fromLocation").onchange=syncTransfer;
+$("productForm").onsubmit=e=>{
+e.preventDefault();
+let type=$("pType").value,name=$("pName").value.trim(),barcode=$("pBarcode").value.trim();
+if(db.products.some(p=>barcode&&p.barcode.toLowerCase()===barcode.toLowerCase()))return alert("Barcode already exists");
+let p={id:Date.now().toString(),type,name,brand:$("pBrand").value.trim(),model:$("pModel").value.trim(),barcode};
+let imeis=$("pImeis").value.split(/[\n,]+/).map(x=>x.trim()).filter(Boolean);
+if(type==="mobile"){
+if(imeis.some(x=>!/^\d{15}$/.test(x)))return alert("Every IMEI must be 15 digits");
+if(new Set(imeis).size!==imeis.length||imeis.some(x=>db.devices.some(d=>d.imei===x)))return alert("Duplicate IMEI found");
+}else{let qty=Number($("pQty").value);if(!Number.isInteger(qty)||qty<0)return alert("Enter valid quantity")}
+db.products.push(p);
+if(type==="mobile")imeis.forEach(imei=>db.devices.push({id:crypto.randomUUID(),productId:p.id,imei,location:$("pLocation").value}));
+else{let qty=Number($("pQty").value);if(qty)db.accessories.push({productId:p.id,location:$("pLocation").value,qty})}
+save();e.target.reset();toggleType();render();alert("Product saved");
+};
+$("stockForm").onsubmit=e=>{
+e.preventDefault();let p=product($("stockProduct").value),loc=$("stockLocation").value;if(!p)return alert("Add a product first");
+if(p.type==="mobile"){
+let arr=$("stockImeis").value.split(/[\n,]+/).map(x=>x.trim()).filter(Boolean);
+if(!arr.length)return alert("Enter IMEI");
+if(arr.some(x=>!/^\d{15}$/.test(x)))return alert("IMEI must be 15 digits");
+if(new Set(arr).size!==arr.length||arr.some(x=>db.devices.some(d=>d.imei===x)))return alert("Duplicate IMEI found");
+arr.forEach(imei=>db.devices.push({id:crypto.randomUUID(),productId:p.id,imei,location:loc}));
+}else{
+let qty=Number($("stockQty").value);if(!Number.isInteger(qty)||qty<1)return alert("Enter valid quantity");
+let a=db.accessories.find(x=>x.productId===p.id&&x.location===loc);if(a)a.qty+=qty;else db.accessories.push({productId:p.id,location:loc,qty});
 }
-function go(id){document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id===id));document.querySelectorAll('[data-page]').forEach(x=>x.classList.toggle('active',x.dataset.page===id));$('topTitle').textContent=({dashboard:'Dashboard',inventory:'Inventory',stockin:'Stock In',stockout:'Stock Out',transfers:'Stock Transfer',reports:'Reports'})[id];render();window.scrollTo(0,0)}
-document.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.page)));
-function quickChange(id,dir){let p=products.find(x=>x.id===id);let n=Number(prompt(dir>0?'Units to add':'Units to remove','1'));if(!Number.isInteger(n)||n<1)return;if(dir<0&&n>p.qty){toast('Not enough stock');return}p.qty+=n*dir;moves.push({type:dir>0?'IN':'OUT',name:p.name,qty:n,location:$('location').value,note:'Quick stock adjustment'});save();render();toast('Stock updated')}
-function showAdd(){let name=prompt('Product name');if(!name||!name.trim())return;let sku=prompt('SKU / barcode (optional)')||'';if(products.some(p=>p.sku.toLowerCase()===sku.toLowerCase()&&sku)){toast('SKU already exists');return}let qty=Number(prompt('Opening quantity','0'));if(!Number.isInteger(qty)||qty<0){toast('Enter a valid quantity');return}products.push({id:Date.now(),name:name.trim(),sku,qty,icon:'📦'});save();render();toast('Product added')}
-$('search').addEventListener('input',render);
-$('inForm').addEventListener('submit',e=>{e.preventDefault();let p=products.find(x=>x.id==$('inProduct').value),n=+$('inQty').value;if(!p||n<1)return;p.qty+=n;moves.push({type:'IN',name:p.name,qty:n,location:$('location').value,note:$('inNote').value||'Stock received'});save();e.target.reset();render();toast('Stock received successfully')});
-$('outForm').addEventListener('submit',e=>{e.preventDefault();let p=products.find(x=>x.id==$('outProduct').value),n=+$('outQty').value;if(!p||n<1)return;if(n>p.qty){toast('Not enough available stock');return}p.qty-=n;moves.push({type:'OUT',name:p.name,qty:n,location:$('location').value,note:$('outNote').value||'Stock issued'});save();e.target.reset();render();toast('Stock issued successfully')});
-$('transferForm').addEventListener('submit',e=>{e.preventDefault();let p=products.find(x=>x.id==$('trProduct').value),n=+$('trQty').value,from=$('fromLoc').value,to=$('toLoc').value;if(from===to){toast('Choose two different locations');return}if(!p||n<1)return;if(n>p.qty){toast('Not enough available stock');return}p.qty-=n;moves.push({type:'TRANSFER',name:p.name,qty:n,location:from+' → '+to,note:'Transfer: '+from+' to '+to});save();e.target.reset();render();toast('Transfer recorded in demo')});
-function exportCSV(){let csv=[['Product','SKU','Quantity'],...products.map(p=>[p.name,p.sku,p.qty])].map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='shekh-stock-report.csv';a.click();URL.revokeObjectURL(a.href)}
-$('csv').onclick=exportCSV;render();
-</script><script>if ("serviceWorker" in navigator) { window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {})); }</script>
-</body></html>
+save();e.target.reset();render();alert("Stock added");
+};
+$("transferForm").onsubmit=e=>{
+e.preventDefault();let p=product($("transferProduct").value),from=$("fromLocation").value,to=$("toLocation").value,staff=$("transferStaff").value.trim();
+if(!p||!staff)return alert("Complete all required fields");if(from===to)return alert("Select different locations");
+let t={id:crypto.randomUUID(),productId:p.id,from,to,staff,note:$("transferNote").value,at:now()};
+if(p.type==="mobile"){
+let d=db.devices.find(x=>x.id===$("transferImei").value&&x.location===from);if(!d)return alert("No IMEI available at source location");d.location=to;t.imei=d.imei;t.qty=1;
+}else{
+let qty=Number($("transferQty").value),src=db.accessories.find(x=>x.productId===p.id&&x.location===from);
+if(!Number.isInteger(qty)||qty<1||!src||src.qty<qty)return alert("Not enough stock at source");
+src.qty-=qty;let dst=db.accessories.find(x=>x.productId===p.id&&x.location===to);if(dst)dst.qty+=qty;else db.accessories.push({productId:p.id,location:to,qty});t.qty=qty;
+}
+db.transfers.push(t);save();e.target.reset();render();alert("Transfer completed successfully");
+};
+function render(){
+addOptions();
+let loc=$("locationFilter").value;
+let devices=db.devices.filter(d=>loc==="All Locations"||d.location===loc),accessories=db.accessories.filter(a=>loc==="All Locations"||a.location===loc);
+$("totalProducts").textContent=db.products.length;$("totalMobiles").textContent=devices.length;$("totalAccessories").textContent=accessories.reduce((s,a)=>s+a.qty,0);$("totalTransfers").textContent=db.transfers.length;
+$("locationRows").innerHTML=locations.map(l=>`<tr><td>${l}</td><td>${db.devices.filter(d=>d.location===l).length}</td><td>${db.accessories.filter(a=>a.location===l).reduce((s,a)=>s+a.qty,0)}</td></tr>`).join("");
+let q=($("search").value||"").toLowerCase(),rows=[];
+db.products.forEach(p=>{
+if(p.type==="mobile")db.devices.filter(d=>d.productId===p.id&&(!q||(pname(p)+" "+d.imei).toLowerCase().includes(q))).forEach(d=>rows.push(`<tr><td>${esc(pname(p))}</td><td>Mobile</td><td>${d.imei}</td><td>${esc(d.location)}</td><td>1 device</td></tr>`));
+else db.accessories.filter(a=>a.productId===p.id&&(!q||pname(p).toLowerCase().includes(q))).forEach(a=>rows.push(`<tr><td>${esc(pname(p))}</td><td>Accessory</td><td>${esc(p.barcode)}</td><td>${esc(a.location)}</td><td>${a.qty} units</td></tr>`));
+});
+$("productRows").innerHTML=rows.join("")||"<tr><td colspan='5'>No stock found</td></tr>";
+$("recent").innerHTML=db.transfers.slice(-5).reverse().map(t=>`<p>${esc(t.imei||t.qty+" units")} · ${esc(t.from)} → ${esc(t.to)} · ${date(t.at)}</p>`).join("")||"No transfers yet";
+renderHistory();
+}
+function renderHistory(){
+let q=($("historySearch").value||"").toLowerCase();
+$("historyRows").innerHTML=db.transfers.slice().reverse().filter(t=>(pname(product(t.productId)||{})+" "+(t.imei||"")+" "+t.from+" "+t.to+" "+t.staff).toLowerCase().includes(q)).map(t=>`<tr><td>${date(t.at)}</td><td>${esc(pname(product(t.productId)||{}))}</td><td>${esc(t.imei||t.qty+" units")}</td><td>${esc(t.from)}</td><td>${esc(t.to)}</td><td>${esc(t.staff)}</td></tr>`).join("")||"<tr><td colspan='6'>No transfers yet</td></tr>";
+}
+render();
+</script>
+</body>
+</html>
