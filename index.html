@@ -74,7 +74,7 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <select id="pType" onchange="toggleType()"><option value="mobile">Mobile</option><option value="accessory">Accessory</option></select>
 <label>Product Name</label><input id="pName" required placeholder="Samsung Galaxy A54 / Charger">
 <label>Product Icon</label><select id="pIcon"><option value="📱">📱 Mobile</option><option value="🔌">🔌 Charger</option><option value="🎧">🎧 Earphones</option><option value="🔋">🔋 Battery</option><option value="📦">📦 Accessories / Other</option><option value="🛡️">🛡️ Cover / Glass</option><option value="⌚">⌚ Smartwatch</option><option value="💻">💻 Laptop / Tablet</option><option value="🔧">🔧 Parts</option><option value="🎮">🎮 Gadget</option></select>
-<label>Sale Price (₹ per unit)</label><input id="pSalePrice" type="number" min="0" step="0.01" value="0" placeholder="Selling price">
+<label>Selling Price (₹ per unit)</label><input id="pSalePrice" type="number" min="0" step="0.01" value="0" placeholder="Selling price"><label>Purchase Price (₹ per unit) — Owner entry</label><input id="pPurchasePrice" type="number" min="0" step="0.01" placeholder="Optional; not shown in stock list or sales invoice">
 <label>Brand</label><input id="pBrand" placeholder="Brand">
 <label>Model / Category</label><input id="pModel" placeholder="Model or category">
 <label>Barcode / SKU</label><input id="pBarcode" placeholder="Optional">
@@ -241,6 +241,7 @@ return `<div class="invoice-paper"><div style="display:flex;justify-content:spac
 }
 function showInvoice(s){
 $("invoicePreview").innerHTML=invoiceMarkup(s)+`<div class="invoice-actions"><button type="button" onclick="printInvoice('${s.id}')">Print Invoice</button></div>`;
+$("invoicePreview").scrollIntoView({behavior:"smooth",block:"start"});
 }
 function printInvoice(id){
 let s=db.sales.find(x=>x.id===id);if(!s)return;
@@ -256,7 +257,7 @@ let subtotal=saleCart.reduce((s,x)=>s+x.amount,0),discount=Number($("saleDiscoun
 let seq=db.sales.length+1,invoiceNo="SHS-"+new Date().toISOString().slice(0,10).replace(/-/g,"")+"-"+String(seq).padStart(4,"0");
 let sale={id:crypto.randomUUID(),invoiceNo,at:now(),location:loc,staff,customer:$("saleCustomer").value.trim(),phone:$("salePhone").value.trim(),payment:$("salePayment").value,items:saleCart.map(x=>({...x})),subtotal,discount,total:subtotal-discount};
 for(let x of sale.items){let p=product(x.productId);if(p.type==="mobile")db.devices=db.devices.filter(d=>d.imei!==x.imei);else{let stock=db.accessories.find(a=>a.productId===p.id&&a.location===loc);stock.qty-=x.qty;}}
-db.sales.push(sale);save();saleCart=[];render();showInvoice(sale);alert("Sale saved and invoice generated: "+invoiceNo);
+db.sales.push(sale);save();saleCart=[];render();showInvoice(sale);alert("Sale saved successfully. Invoice "+invoiceNo+" has been generated below. Use Print Invoice to print or save as PDF.");
 }
 function renderSalesHistory(){
 if(!$("salesRows"))return;
@@ -291,7 +292,9 @@ let type=$("pType").value,name=$("pName").value.trim(),barcode=$("pBarcode").val
 if(db.products.some(p=>barcode&&p.barcode.toLowerCase()===barcode.toLowerCase()))return alert("Barcode already exists");
 let salePrice=Number($("pSalePrice").value);
 if(!Number.isFinite(salePrice)||salePrice<0)return alert("Enter a valid sale price");
-let p={id:Date.now().toString(),type,name,brand:$("pBrand").value.trim(),model:$("pModel").value.trim(),barcode,icon:$("pIcon").value,salePrice};
+let purchaseRaw=$("pPurchasePrice").value.trim(),purchasePrice=purchaseRaw===""?null:Number(purchaseRaw);
+if(purchasePrice!==null&&(!Number.isFinite(purchasePrice)||purchasePrice<0))return alert("Enter a valid purchase price");
+let p={id:Date.now().toString(),type,name,brand:$("pBrand").value.trim(),model:$("pModel").value.trim(),barcode,icon:$("pIcon").value,salePrice,purchasePrice};
 let imeis=$("pImeis").value.split(/[\n,]+/).map(x=>x.trim()).filter(Boolean);
 if(type==="mobile"){
 if(imeis.some(x=>!/^\d{15}$/.test(x)))return alert("Every IMEI must be 15 digits");
