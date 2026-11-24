@@ -159,7 +159,8 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <div id="saleMobileFields"><label>Select IMEI</label><select id="saleImei"></select></div>
 <div id="saleAccessoryFields" style="display:none"><label>Quantity</label><input id="saleQty" type="number" min="1" value="1"></div>
 <label>Unit Sale Price (₹)</label><input id="saleUnitPrice" type="number" min="0" step="0.01" value="0">
-<button type="button" onclick="addSaleItem()">Add Item to Invoice</button>
+<div class="row"><div><label>Available Stock</label><div id="saleAvailable" class="card">Select a product</div></div><div><label>Current Item Amount</label><div id="saleLineAmount" class="card">₹0.00</div></div></div>
+<button type="button" onclick="addSaleItem()">＋ Add Product to Bill</button>
 <div class="tablewrap" style="margin-top:16px"><table><thead><tr><th>Product</th><th>IMEI / Qty</th><th>Price</th><th>Amount</th><th></th></tr></thead><tbody id="saleCartRows"></tbody></table></div>
 <p><strong>Total: ₹<span id="saleTotal">0.00</span></strong></p>
 <div class="row"><div><label>Discount (₹)</label><input id="saleDiscount" type="number" min="0" step="0.01" value="0" oninput="renderSaleCart()"></div><div><label>Payment Mode</label><select id="salePayment"><option>Cash</option><option>UPI</option><option>Card</option><option>Bank Transfer</option><option>Credit / Due</option></select></div></div>
@@ -218,6 +219,15 @@ $("saleMobileFields").style.display=mobile?"block":"none";
 $("saleAccessoryFields").style.display=mobile?"none":"block";
 $("saleUnitPrice").value=p?Number(p.salePrice||0):0;
 $("saleImei").innerHTML=db.devices.filter(d=>d.productId===p?.id&&d.location===loc).map(d=>`<option value="${d.id}">${d.imei}</option>`).join("");
+updateSalePreview();
+}
+function updateSalePreview(){
+let p=product($("saleProduct").value),loc=$("saleLocation").value;
+if(!p){$("saleAvailable").textContent="Select a product";$("saleLineAmount").textContent="₹0.00";return;}
+let mobile=p.type==="mobile",available=mobile?db.devices.filter(d=>d.productId===p.id&&d.location===loc).length:(db.accessories.find(a=>a.productId===p.id&&a.location===loc)?.qty||0);
+let qty=mobile?1:Number($("saleQty").value||0),price=Number($("saleUnitPrice").value||0);
+$("saleAvailable").textContent=mobile?available+" device(s) available":available+" unit(s) available";
+$("saleLineAmount").textContent="₹"+(Math.max(0,qty)*Math.max(0,price)).toFixed(2);
 }
 function addSaleItem(){
 let p=product($("saleProduct").value),loc=$("saleLocation").value;if(!p)return alert("Add a product first");
@@ -226,7 +236,7 @@ if(p.type==="mobile"){device=db.devices.find(d=>d.id===$("saleImei").value&&d.pr
 else{qty=Number($("saleQty").value);let available=db.accessories.find(a=>a.productId===p.id&&a.location===loc)?.qty||0;let already=saleCart.filter(x=>x.productId===p.id).reduce((s,x)=>s+x.qty,0);if(!Number.isInteger(qty)||qty<1||qty+already>available)return alert("Quantity exceeds available stock");}
 let price=Number($("saleUnitPrice").value);if(!Number.isFinite(price)||price<0)return alert("Enter a valid sale price");
 saleCart.push({productId:p.id,qty,imei,unitPrice:price,amount:qty*price,location:loc});
-renderSaleCart();if(p.type==="mobile")syncSale();
+renderSaleCart();if(p.type==="mobile")syncSale();else updateSalePreview();
 }
 function removeSaleItem(i){saleCart.splice(i,1);renderSaleCart()}
 function renderSaleCart(){
@@ -250,7 +260,7 @@ w.document.write(`<!doctype html><html><head><title>${esc(s.invoiceNo)}</title><
 w.document.close();
 }
 function completeSale(){
-let staff=$("saleStaff").value.trim();if(!staff)return alert("Enter staff name");if(!saleCart.length)return alert("Add at least one product");
+let staff=$("saleStaff").value.trim();if(!staff)return alert("Enter staff name");if(!saleCart.length){addSaleItem();if(!saleCart.length)return;}
 let loc=$("saleLocation").value;
 for(let x of saleCart){if(x.location!==loc)return alert("All invoice items must be from the selected sale location. Clear the invoice and add items again.");let p=product(x.productId);if(!p)return alert("A product is missing");if(p.type==="mobile"){if(!db.devices.some(d=>d.imei===x.imei&&d.location===loc&&d.productId===p.id))return alert("IMEI stock changed. Please refresh invoice items");}else{let stock=db.accessories.find(a=>a.productId===p.id&&a.location===loc)?.qty||0;if(stock<x.qty)return alert("Not enough stock for "+pname(p));}}
 let subtotal=saleCart.reduce((s,x)=>s+x.amount,0),discount=Number($("saleDiscount").value)||0;if(discount<0||discount>subtotal)return alert("Discount cannot exceed subtotal");
@@ -280,6 +290,7 @@ $("outHistoryRows").innerHTML=db.stockOuts.slice().reverse().filter(t=>(pname(pr
 }
 $("stockProduct").onchange=syncStock;$("transferProduct").onchange=syncTransfer;$("fromLocation").onchange=syncTransfer;
 $("saleProduct").onchange=syncSale;$("saleLocation").onchange=syncSale;
+$("saleQty").addEventListener("input",updateSalePreview);$("saleUnitPrice").addEventListener("input",updateSalePreview);
 $("outMethod").onchange=syncOut;$("outProduct").onchange=syncOut;$("outLocation").onchange=syncOut;
 $("outScanCode").addEventListener("input",()=>{
 let code=$("outScanCode").value.trim(),p=db.products.find(x=>x.barcode&&x.barcode.toLowerCase()===code.toLowerCase());
