@@ -159,6 +159,7 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <label>Return Type</label><select id="returnType"><option value="customer">Customer Return</option><option value="shop">Shop Return to Godown</option></select>
 <div id="customerReturnFields">
 <label>Return Location</label><select id="customerReturnLocation"><option>Main Godown</option><option>Shop 1</option><option>Shop 2</option><option>Shop 3</option></select>
+<label>Mobile Return by IMEI</label><div class="row"><div><input id="customerReturnLookup" inputmode="numeric" maxlength="15" placeholder="Enter or scan sold mobile IMEI"></div><div><button type="button" onclick="lookupCustomerReturnIMEI()">Find IMEI</button></div></div><p id="customerReturnLookupStatus" class="muted">Scan or enter IMEI to find the sold mobile automatically. Accessories can be selected below.</p>
 <label>Product</label><select id="customerReturnProduct"></select>
 <div id="customerReturnMobile"><label>Returned IMEI (15 digits)</label><input id="customerReturnImei" inputmode="numeric" maxlength="15" placeholder="Enter returned mobile IMEI"></div>
 <div id="customerReturnAccessory" style="display:none"><label>Returned Quantity</label><input id="customerReturnQty" type="number" min="1" value="1"></div>
@@ -281,6 +282,26 @@ $("outManualAccessory").style.display=mobile?"none":"block";
 $("outScanAccessoryQty").style.display=!manual&&$("outScanCode").dataset.kind==="accessory"?"block":"none";
 let loc=$("outLocation").value;
 $("outImei").innerHTML=db.devices.filter(d=>d.productId===p?.id&&d.location===loc).map(d=>`<option value="${d.id}">${d.imei}</option>`).join("");
+}
+function findSoldMobileByIMEI(imei){
+let matches=[];
+db.sales.forEach(s=>(s.items||[]).forEach(item=>{if(item.imei===imei)matches.push({sale:s,item});}));
+matches.sort((a,b)=>new Date(b.sale.at)-new Date(a.sale.at));
+return matches[0]||null;
+}
+function lookupCustomerReturnIMEI(){
+let imei=$("customerReturnLookup").value.trim();
+if(!/^\d{15}$/.test(imei)){ $("customerReturnLookupStatus").textContent="Please enter a valid 15-digit IMEI.";return alert("Enter a valid 15-digit IMEI");}
+if(db.devices.some(d=>d.imei===imei)){ $("customerReturnLookupStatus").textContent="This IMEI is already in usable stock.";return alert("This IMEI is already in usable stock");}
+if(db.returns.some(r=>r.type==="customer"&&r.imei===imei)){ $("customerReturnLookupStatus").textContent="This IMEI already has a customer return record.";return alert("This IMEI has already been returned");}
+let found=findSoldMobileByIMEI(imei);
+if(!found){$("customerReturnLookupStatus").textContent="IMEI not found in Sales History. Check the IMEI or sale record.";return alert("This IMEI was not found in Sales History. Please check the IMEI.");}
+let p=product(found.item.productId);
+if(!p||p.type!=="mobile"){ $("customerReturnLookupStatus").textContent="Matching mobile product could not be found.";return alert("Product record not found");}
+$("customerReturnProduct").value=p.id;
+$("customerReturnImei").value=imei;
+$("customerReturnLookupStatus").textContent="Found: "+pname(p)+" · Invoice "+found.sale.invoiceNo+" · Sold at "+found.sale.location+". Choose return location and condition.";
+syncReturnForms();
 }
 function syncReturnForms(){
 let type=$("returnType").value,customer=type==="customer";
@@ -425,7 +446,7 @@ $("outHistoryRows").innerHTML=db.stockOuts.slice().reverse().filter(t=>(pname(pr
 }
 $("stockProduct").onchange=syncStock;$("transferProduct").onchange=syncTransfer;$("fromLocation").onchange=syncTransfer;
 $("saleProduct").onchange=syncSale;$("saleLocation").onchange=syncSale;
-$("returnType").onchange=syncReturnForms;$("customerReturnProduct").onchange=syncReturnForms;$("shopReturnProduct").onchange=syncReturnForms;$("shopReturnFrom").onchange=syncReturnForms;$("damageProduct").onchange=syncDamage;$("damageLocation").onchange=syncDamage;
+$("returnType").onchange=syncReturnForms;$("customerReturnProduct").onchange=syncReturnForms;$("customerReturnLookup").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();lookupCustomerReturnIMEI();}});$("shopReturnProduct").onchange=syncReturnForms;$("shopReturnFrom").onchange=syncReturnForms;$("damageProduct").onchange=syncDamage;$("damageLocation").onchange=syncDamage;
 $("saleQty").addEventListener("input",updateSalePreview);$("saleUnitPrice").addEventListener("input",updateSalePreview);
 $("outMethod").onchange=syncOut;$("outProduct").onchange=syncOut;$("outLocation").onchange=syncOut;
 $("outScanCode").addEventListener("input",()=>{
@@ -462,6 +483,8 @@ let record={id:crypto.randomUUID(),type:"customer",productId:p.id,location:loc,c
 if(p.type==="mobile"){
 let imei=$("customerReturnImei").value.trim();
 if(!/^\d{15}$/.test(imei))return alert("Enter a valid 15-digit IMEI");
+if(!findSoldMobileByIMEI(imei))return alert("This IMEI was not found in Sales History. Use Find IMEI first.");
+if(db.returns.some(r=>r.type==="customer"&&r.imei===imei))return alert("This IMEI has already been returned");
 if(db.devices.some(d=>d.imei===imei))return alert("This IMEI is already in usable stock");
 record.imei=imei;record.qty=1;
 if(condition==="good")db.devices.push({id:crypto.randomUUID(),productId:p.id,imei,location:loc});
