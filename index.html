@@ -35,9 +35,7 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <body>
 <header>
 <h2>SHEKH STOCK</h2>
-<select id="locationFilter" onchange="setActiveLocation(this.value)">
-<option>Main Godown</option><option>Shop 1</option><option>Shop 2</option><option>Shop 3</option>
-</select>
+<select id="locationFilter" onchange="setActiveLocation(this.value)"></select>
 </header>
 <nav>
 <button onclick="show('dashboard')">Dashboard</button>
@@ -52,6 +50,7 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <button onclick="show('returns')">Returns</button>
 <button onclick="show('damage')">Damage & Replacement</button>
 <button onclick="show('outHistory')">Stock Out History</button>
+<button onclick="show('locations')">Manage Shops / Godowns</button>
 </nav>
 <main>
 <section id="dashboard" class="active">
@@ -65,6 +64,15 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 </div>
 <div class="panel"><h3>Shop-wise Stock</h3><div class="tablewrap"><table><thead><tr><th>Location</th><th>Mobile IMEIs</th><th>Accessory Units</th></tr></thead><tbody id="locationRows"></tbody></table></div></div>
 <div class="panel"><h3>Recent Transfers</h3><div id="recent"></div></div>
+</section>
+<section id="locations">
+<h2>Manage Shops & Godowns</h2>
+<p class="muted">Yahan se zarurat ke hisab se naye shops aur godowns add kar sakte hain. Shuruat mein 1 shop aur 1 main godown diya gaya hai.</p>
+<div class="panel"><h3>Add New Location</h3><form id="locationForm">
+<label>Location Type</label><select id="newLocationType"><option value="shop">Shop</option><option value="godown">Godown</option></select>
+<label>Location Name</label><input id="newLocationName" required maxlength="30" placeholder="e.g. Shop 2 / Jaipur Godown">
+<button type="submit">Add Location</button></form></div>
+<div class="panel"><h3>Current Shops & Godowns</h3><div class="tablewrap"><table><thead><tr><th>Name</th><th>Type</th><th>Action</th></tr></thead><tbody id="locationManageRows"></tbody></table></div></div>
 </section>
 <section id="addProduct">
 <h2>Add Product</h2>
@@ -80,7 +88,7 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <label>Brand</label><input id="pBrand" placeholder="Brand">
 <label>Model / Category</label><input id="pModel" placeholder="Model or category">
 <label>Barcode / SKU</label><input id="pBarcode" placeholder="Optional">
-<label>Opening Location</label><select id="pLocation"><option>Main Godown</option><option>Shop 1</option><option>Shop 2</option><option>Shop 3</option></select>
+<label>Opening Location</label><select id="pLocation"></select>
 <div id="mobileFields"><label>IMEI (one per line, 15 digits)</label><textarea id="pImeis" rows="3"></textarea></div>
 <div id="accessoryFields" style="display:none"><label>Opening Quantity</label><input id="pQty" type="number" min="0" value="0"></div>
 <button type="submit">Save Product</button>
@@ -99,7 +107,7 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <h2>Stock In</h2><div class="panel">
 <form id="stockForm">
 <label>Product</label><select id="stockProduct"></select>
-<label>Location</label><select id="stockLocation"><option>Main Godown</option><option>Shop 1</option><option>Shop 2</option><option>Shop 3</option></select>
+<label>Location</label><select id="stockLocation"></select>
 <div id="stockMobile"><label>New IMEI (one per line)</label><textarea id="stockImeis" rows="3"></textarea></div>
 <div id="stockAccessory" style="display:none"><label>Quantity</label><input id="stockQty" type="number" min="1"></div>
 <button type="submit">Add Stock</button>
@@ -110,8 +118,8 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <form id="transferForm">
 <label>Product</label><select id="transferProduct"></select>
 <div class="row">
-<div><label>From</label><select id="fromLocation"><option>Main Godown</option><option>Shop 1</option><option>Shop 2</option><option>Shop 3</option></select></div>
-<div><label>To</label><select id="toLocation"><option>Shop 1</option><option>Shop 2</option><option>Shop 3</option><option>Main Godown</option></select></div>
+<div><label>From</label><select id="fromLocation"></select></div>
+<div><label>To</label><select id="toLocation"></select></div>
 </div>
 <div id="transferMobile"><label>Select IMEI</label><select id="transferImei"></select></div>
 <div id="transferAccessory" style="display:none"><label>Quantity</label><input id="transferQty" type="number" min="1"></div>
@@ -134,7 +142,7 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <form id="stockOutForm">
 <label>Entry Method</label>
 <select id="outMethod"><option value="scan">Barcode Scan</option><option value="manual">Manual Entry</option></select>
-<label>Location</label><select id="outLocation"><option>Main Godown</option><option>Shop 1</option><option>Shop 2</option><option>Shop 3</option></select>
+<label>Location</label><select id="outLocation"></select>
 <div id="outScanFields">
 <label>Scan Barcode / IMEI</label><input id="outScanCode" autocomplete="off" placeholder="Scan mobile IMEI or accessory barcode">
 <p class="muted">Mobile: scan the 15-digit IMEI. Accessory: scan its product barcode.</p>
@@ -158,7 +166,7 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <form id="returnForm">
 <label>Return Type</label><select id="returnType"><option value="customer">Customer Return</option><option value="shop">Shop Return to Godown</option></select>
 <div id="customerReturnFields">
-<label>Return Location</label><select id="customerReturnLocation"><option>Main Godown</option><option>Shop 1</option><option>Shop 2</option><option>Shop 3</option></select>
+<label>Return Location</label><select id="customerReturnLocation"></select>
 <label>Mobile Return by IMEI</label><div class="row"><div><input id="customerReturnLookup" inputmode="numeric" maxlength="15" placeholder="Enter or scan sold mobile IMEI"></div><div><button type="button" onclick="lookupCustomerReturnIMEI()">Find IMEI</button></div></div><p id="customerReturnLookupStatus" class="muted">Scan or enter IMEI to find the sold mobile automatically. Accessories can be selected below.</p>
 <label>Product</label><select id="customerReturnProduct"></select>
 <div id="customerReturnMobile"><label>Returned IMEI (15 digits)</label><input id="customerReturnImei" inputmode="numeric" maxlength="15" placeholder="Enter returned mobile IMEI"></div>
@@ -168,7 +176,7 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <label>Reason / Note</label><input id="customerReturnNote" placeholder="Return reason">
 </div>
 <div id="shopReturnFields" style="display:none">
-<label>Returning Shop</label><select id="shopReturnFrom"><option>Shop 1</option><option>Shop 2</option><option>Shop 3</option></select>
+<label>Returning Shop</label><select id="shopReturnFrom"></select>
 <label>Product</label><select id="shopReturnProduct"></select>
 <div id="shopReturnMobile"><label>Select IMEI</label><select id="shopReturnImei"></select></div>
 <div id="shopReturnAccessory" style="display:none"><label>Quantity</label><input id="shopReturnQty" type="number" min="1" value="1"></div>
@@ -185,7 +193,7 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <p class="muted">Damaged items are removed from usable stock. Only received replacement items are added back to usable stock.</p>
 <div class="panel">
 <form id="damageForm">
-<label>Damage Location</label><select id="damageLocation"><option>Main Godown</option><option>Shop 1</option><option>Shop 2</option><option>Shop 3</option></select>
+<label>Damage Location</label><select id="damageLocation"></select>
 <label>Product</label><select id="damageProduct"></select>
 <div id="damageMobile"><label>Select damaged IMEI</label><select id="damageImei" multiple size="4"></select><small class="muted">For multiple mobiles, hold Ctrl while selecting.</small></div>
 <div id="damageAccessory" style="display:none"><label>Damaged Quantity</label><input id="damageQty" type="number" min="1" value="1"></div>
@@ -200,7 +208,7 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <h2>Sale & Invoice</h2>
 <p class="muted">Add multiple products to one bill. Stock will reduce automatically after confirming the sale.</p>
 <div class="panel">
-<div class="row"><div><label>Sale Location (Active Shop)</label><select id="saleLocation" disabled><option>Shop 1</option><option>Shop 2</option><option>Shop 3</option><option>Main Godown</option></select></div><div><label>Staff Name</label><input id="saleStaff" placeholder="Staff name"></div></div>
+<div class="row"><div><label>Sale Location (Active Shop)</label><select id="saleLocation" disabled></select></div><div><label>Staff Name</label><input id="saleStaff" placeholder="Staff name"></div></div>
 <div class="row"><div><label>Customer Name (optional)</label><input id="saleCustomer" placeholder="Customer name"></div><div><label>Customer Mobile (optional)</label><input id="salePhone" placeholder="Mobile number"></div></div>
 <label>Product</label><select id="saleProduct"></select><div id="saleProductIcon" class="sale-product-icon"></div>
 <div id="saleMobileFields"><label>Select IMEI</label><select id="saleImei"></select></div>
@@ -230,13 +238,19 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 </main>
 <script>
 const KEY="shekh-stock-v3";
-const locations=["Main Godown","Shop 1","Shop 2","Shop 3"];
 const ACTIVE_LOCATION_KEY="shekh-stock-active-location";
-let activeLocation=localStorage.getItem(ACTIVE_LOCATION_KEY)||"Shop 1";
-if(!locations.includes(activeLocation))activeLocation="Shop 1";
 let db;
 try{db=JSON.parse(localStorage.getItem(KEY))}catch(e){}
 if(!db)db={products:[],devices:[],accessories:[],transfers:[],stockOuts:[],sales:[]};
+let locations=Array.isArray(db.locations)?db.locations.slice():["Main Godown","Shop 1"];
+if(!locations.length)locations=["Main Godown","Shop 1"];
+db.locationTypes=db.locationTypes||{};
+if(!locations.some(x=>db.locationTypes[x]==="godown")){if(!locations.includes("Main Godown"))locations.unshift("Main Godown");db.locationTypes["Main Godown"]="godown";}
+if(!locations.some(x=>db.locationTypes[x]==="shop")){if(!locations.includes("Shop 1"))locations.push("Shop 1");db.locationTypes["Shop 1"]="shop";}
+locations.forEach(name=>{if(!db.locationTypes[name])db.locationTypes[name]=/godown/i.test(name)?"godown":"shop";});
+db.locations=locations;
+let activeLocation=localStorage.getItem(ACTIVE_LOCATION_KEY)||locations.find(x=>db.locationTypes[x]==="shop")||locations[0];
+if(!locations.includes(activeLocation))activeLocation=locations.find(x=>db.locationTypes[x]==="shop")||locations[0];
 if(!Array.isArray(db.stockOuts))db.stockOuts=[];
 if(!Array.isArray(db.sales))db.sales=[];
 if(!Array.isArray(db.returns))db.returns=[];
@@ -268,6 +282,34 @@ const now=()=>new Date().toISOString();
 const date=d=>new Date(d).toLocaleString();
 function show(id){document.querySelectorAll("main section").forEach(s=>s.classList.remove("active"));$(id).classList.add("active");render()}
 function setActiveLocation(location){if(!locations.includes(location))return;activeLocation=location;localStorage.setItem(ACTIVE_LOCATION_KEY,location);render()}
+function locationOptions(selected,shopsOnly=false){
+let names=locations.filter(name=>!shopsOnly||db.locationTypes[name]==="shop");
+if(selected&&!names.includes(selected))selected="";
+return names.map(name=>'<option value="'+esc(name)+'"'+(name===selected?' selected':'')+'>'+esc(name)+'</option>').join("");
+}
+function renderLocationControls(){
+const configs=[["locationFilter",false],["pLocation",false],["stockLocation",false],["fromLocation",false],["toLocation",false],["outLocation",false],["customerReturnLocation",false],["shopReturnFrom",true],["damageLocation",false],["saleLocation",false]];
+configs.forEach(([id,shopsOnly])=>{let el=$(id);if(!el)return;let selected=el.value;if(id==="locationFilter"||id==="saleLocation")selected=activeLocation;el.innerHTML=locationOptions(selected,shopsOnly);if(!el.value&&el.options.length)el.value=el.options[0].value;});
+}
+function locationInUse(name){
+const has=(arr,key)=>Array.isArray(arr)&&arr.some(x=>x&&x[key]===name);
+return has(db.devices,"location")||has(db.accessories,"location")||has(db.transfers,"from")||has(db.transfers,"to")||has(db.stockOuts,"location")||has(db.sales,"location")||has(db.returns,"location")||has(db.returns,"from")||has(db.damages,"location");
+}
+function renderLocationManager(){
+const body=$("locationManageRows");if(!body)return;
+body.innerHTML=locations.map(name=>'<tr><td>'+esc(name)+'</td><td>'+((db.locationTypes[name]==="godown")?"Godown":"Shop")+'</td><td><button type="button" class="secondary" onclick="removeLocation(\''+esc(name).replace(/'/g,"\\'")+'\')">Remove</button></td></tr>').join("");
+}
+function removeLocation(name){
+if(!locations.includes(name))return;
+const type=db.locationTypes[name];
+if(locations.filter(x=>db.locationTypes[x]===type).length<=1)return alert("At least one "+(type==="shop"?"shop":"godown")+" must remain.");
+if(locationInUse(name))return alert("Is location mein stock ya purana transaction maujood hai. Data safe rakhne ke liye ise remove nahi kar sakte.");
+if(!confirm(name+" ko remove karna hai?"))return;
+locations=locations.filter(x=>x!==name);delete db.locationTypes[name];db.locations=locations;
+if(activeLocation===name){activeLocation=locations.find(x=>db.locationTypes[x]==="shop")||locations[0];localStorage.setItem(ACTIVE_LOCATION_KEY,activeLocation);}
+save();render();
+}
+
 function toggleType(){let m=$("pType").value==="mobile";$("mobileFields").style.display=m?"block":"none";$("accessoryFields").style.display=m?"none":"block"}
 function addOptions(){let opts=db.products.map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");$("stockProduct").innerHTML=opts;$("transferProduct").innerHTML=opts;syncStock();syncTransfer()}
 function syncStock(){let p=product($("stockProduct").value),m=p&&p.type==="mobile";$("stockMobile").style.display=m?"block":"none";$("stockAccessory").style.display=m?"none":"block"}
@@ -454,6 +496,12 @@ let code=$("outScanCode").value.trim(),p=db.products.find(x=>x.barcode&&x.barcod
 $("outScanCode").dataset.kind=p&&p.type==="accessory"?"accessory":"";
 $("outScanAccessoryQty").style.display=p&&p.type==="accessory"?"block":"none";
 });
+$("locationForm").onsubmit=e=>{
+e.preventDefault();let name=$("newLocationName").value.trim(),type=$("newLocationType").value;
+if(!name)return alert("Location ka naam likhein");
+if(locations.some(x=>x.toLowerCase()===name.toLowerCase()))return alert("Ye location pehle se maujood hai");
+locations.push(name);db.locations=locations;db.locationTypes[name]=type;save();e.target.reset();render();alert(name+" add ho gaya.");
+};
 $("productForm").onsubmit=e=>{
 e.preventDefault();
 let type=$("pType").value,name=$("pName").value.trim(),barcode=$("pBarcode").value.trim();
@@ -598,6 +646,7 @@ src.qty-=qty;let dst=db.accessories.find(x=>x.productId===p.id&&x.location===to)
 db.transfers.push(t);save();e.target.reset();render();alert("Transfer completed successfully");
 };
 function render(){
+renderLocationControls();
 $("locationFilter").value=activeLocation;
 $("saleLocation").value=activeLocation;
 addOptions();
@@ -612,7 +661,7 @@ let devices=db.devices.filter(d=>loc==="All Locations"||d.location===loc),access
 $("totalProducts").textContent=db.products.length;$("totalMobiles").textContent=devices.length;$("totalAccessories").textContent=accessories.reduce((s,a)=>s+a.qty,0);$("totalTransfers").textContent=db.transfers.length;
 $("locationRows").innerHTML=locations.map(l=>`<tr><td>${l}</td><td>${db.devices.filter(d=>d.location===l).length}</td><td>${db.accessories.filter(a=>a.location===l).reduce((s,a)=>s+a.qty,0)}</td></tr>`).join("");
 $("totalTransfers").textContent=db.transfers.length;
-renderProducts();renderReturns();renderDamages();syncReturnForms();syncDamage();
+renderProducts();renderReturns();renderDamages();syncReturnForms();syncDamage();renderLocationManager();
 $("recent").innerHTML=db.transfers.slice(-5).reverse().map(t=>`<p>${esc(t.imei||t.qty+" units")} · ${esc(t.from)} → ${esc(t.to)} · ${date(t.at)}</p>`).join("")||"No transfers yet";
 renderHistory();renderOutHistory();renderSalesHistory();
 }
