@@ -49,6 +49,8 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <button onclick="show('transfer')">Transfer</button>
 <button onclick="show('history')">Transfer History</button>
 <button onclick="show('stockout')">Stock Out</button>
+<button onclick="show('returns')">Returns</button>
+<button onclick="show('damage')">Damage & Replacement</button>
 <button onclick="show('outHistory')">Stock Out History</button>
 </nav>
 <main>
@@ -149,6 +151,50 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 </form>
 </div>
 </section>
+<section id="returns">
+<h2>Stock Returns</h2>
+<p class="muted">Customer returns can be added back to stock after checking condition. Shop returns move existing stock back to Main Godown.</p>
+<div class="panel">
+<form id="returnForm">
+<label>Return Type</label><select id="returnType"><option value="customer">Customer Return</option><option value="shop">Shop Return to Godown</option></select>
+<div id="customerReturnFields">
+<label>Return Location</label><select id="customerReturnLocation"><option>Main Godown</option><option>Shop 1</option><option>Shop 2</option><option>Shop 3</option></select>
+<label>Product</label><select id="customerReturnProduct"></select>
+<div id="customerReturnMobile"><label>Returned IMEI (15 digits)</label><input id="customerReturnImei" inputmode="numeric" maxlength="15" placeholder="Enter returned mobile IMEI"></div>
+<div id="customerReturnAccessory" style="display:none"><label>Returned Quantity</label><input id="customerReturnQty" type="number" min="1" value="1"></div>
+<label>Product Condition</label><select id="customerReturnCondition"><option value="good">Good — Add to usable stock</option><option value="damaged">Damaged — Send to Damage Register</option></select>
+<label>Customer Name (optional)</label><input id="returnCustomer" placeholder="Customer name">
+<label>Reason / Note</label><input id="customerReturnNote" placeholder="Return reason">
+</div>
+<div id="shopReturnFields" style="display:none">
+<label>Returning Shop</label><select id="shopReturnFrom"><option>Shop 1</option><option>Shop 2</option><option>Shop 3</option></select>
+<label>Product</label><select id="shopReturnProduct"></select>
+<div id="shopReturnMobile"><label>Select IMEI</label><select id="shopReturnImei"></select></div>
+<div id="shopReturnAccessory" style="display:none"><label>Quantity</label><input id="shopReturnQty" type="number" min="1" value="1"></div>
+<label>Returned By</label><input id="shopReturnStaff" placeholder="Staff name">
+<label>Note</label><input id="shopReturnNote" placeholder="Optional">
+</div>
+<button type="submit">Save Return</button>
+</form>
+</div>
+<div class="panel"><h3>Return History</h3><input id="returnSearch" placeholder="Search product, IMEI, shop or customer" oninput="renderReturns()"><div class="tablewrap"><table><thead><tr><th>Date & Time</th><th>Return Type</th><th>Product</th><th>IMEI / Qty</th><th>Location</th><th>Condition / Note</th></tr></thead><tbody id="returnRows"></tbody></table></div></div>
+</section>
+<section id="damage">
+<h2>Damage & Company Replacement</h2>
+<p class="muted">Damaged items are removed from usable stock. Only received replacement items are added back to usable stock.</p>
+<div class="panel">
+<form id="damageForm">
+<label>Damage Location</label><select id="damageLocation"><option>Main Godown</option><option>Shop 1</option><option>Shop 2</option><option>Shop 3</option></select>
+<label>Product</label><select id="damageProduct"></select>
+<div id="damageMobile"><label>Select damaged IMEI</label><select id="damageImei" multiple size="4"></select><small class="muted">For multiple mobiles, hold Ctrl while selecting.</small></div>
+<div id="damageAccessory" style="display:none"><label>Damaged Quantity</label><input id="damageQty" type="number" min="1" value="1"></div>
+<label>Company / Supplier (optional)</label><input id="damageCompany" placeholder="Company or supplier name">
+<label>Damage Reason</label><input id="damageReason" required placeholder="Physical damage, not working, etc.">
+<button type="submit">Record Damage</button>
+</form>
+</div>
+<div class="panel"><h3>Damage & Replacement Register</h3><input id="damageSearch" placeholder="Search product, IMEI, company or status" oninput="renderDamages()"><div class="tablewrap"><table><thead><tr><th>Date</th><th>Product</th><th>IMEI / Qty</th><th>Company</th><th>Received</th><th>Pending</th><th>Total Loss</th><th>Status / Action</th></tr></thead><tbody id="damageRows"></tbody></table></div></div>
+</section>
 <section id="sales">
 <h2>Sale & Invoice</h2>
 <p class="muted">Add multiple products to one bill. Stock will reduce automatically after confirming the sale.</p>
@@ -192,6 +238,8 @@ try{db=JSON.parse(localStorage.getItem(KEY))}catch(e){}
 if(!db)db={products:[],devices:[],accessories:[],transfers:[],stockOuts:[],sales:[]};
 if(!Array.isArray(db.stockOuts))db.stockOuts=[];
 if(!Array.isArray(db.sales))db.sales=[];
+if(!Array.isArray(db.returns))db.returns=[];
+if(!Array.isArray(db.damages))db.damages=[];
 let saleCart=[];
 const $=id=>document.getElementById(id);
 const save=()=>localStorage.setItem(KEY,JSON.stringify(db));
@@ -233,6 +281,27 @@ $("outManualAccessory").style.display=mobile?"none":"block";
 $("outScanAccessoryQty").style.display=!manual&&$("outScanCode").dataset.kind==="accessory"?"block":"none";
 let loc=$("outLocation").value;
 $("outImei").innerHTML=db.devices.filter(d=>d.productId===p?.id&&d.location===loc).map(d=>`<option value="${d.id}">${d.imei}</option>`).join("");
+}
+function syncReturnForms(){
+let type=$("returnType").value,customer=type==="customer";
+$("customerReturnFields").style.display=customer?"block":"none";
+$("shopReturnFields").style.display=customer?"none":"block";
+let cp=product($("customerReturnProduct").value),cm=cp&&cp.type==="mobile";
+$("customerReturnMobile").style.display=cm?"block":"none";
+$("customerReturnAccessory").style.display=cm?"none":"block";
+let sp=product($("shopReturnProduct").value),sm=sp&&sp.type==="mobile",from=$("shopReturnFrom").value;
+$("shopReturnMobile").style.display=sm?"block":"none";
+$("shopReturnAccessory").style.display=sm?"none":"block";
+$("shopReturnImei").innerHTML=db.devices.filter(d=>d.productId===sp?.id&&d.location===from).map(d=>'<option value="'+d.id+'">'+esc(d.imei)+'</option>').join("");
+}
+function syncDamage(){
+let p=product($("damageProduct").value),mobile=p&&p.type==="mobile",loc=$("damageLocation").value;
+$("damageMobile").style.display=mobile?"block":"none";
+$("damageAccessory").style.display=mobile?"none":"block";
+$("damageImei").innerHTML=db.devices.filter(d=>d.productId===p?.id&&d.location===loc).map(d=>'<option value="'+d.id+'">'+esc(d.imei)+'</option>').join("");
+}
+function addDamageRecord({productId,location,qty,imeis=[],company="",reason="",source="damage"}){
+db.damages.push({id:crypto.randomUUID(),productId,location,qty,imeis:[...imeis],company,reason,source,at:now(),replacementReceived:0,replacementImeis:[],lossQty:0,status:"Pending"});
 }
 function syncSale(){
 $("saleLocation").value=activeLocation;
@@ -293,6 +362,48 @@ let sale={id:crypto.randomUUID(),invoiceNo,at:now(),location:loc,staff,customer:
 for(let x of sale.items){let p=product(x.productId);if(p.type==="mobile")db.devices=db.devices.filter(d=>d.imei!==x.imei);else{let stock=db.accessories.find(a=>a.productId===p.id&&a.location===loc);stock.qty-=x.qty;}}
 db.sales.push(sale);save();saleCart=[];render();showInvoice(sale);alert("Sale saved successfully. Invoice "+invoiceNo+" has been generated below. Use Print Invoice to print or save as PDF.");
 }
+function renderReturns(){
+if(!$("returnRows"))return;
+let q=($("returnSearch").value||"").toLowerCase();
+$("returnRows").innerHTML=db.returns.slice().reverse().filter(r=>(pname(product(r.productId)||{})+" "+(r.imei||"")+" "+r.location+" "+(r.customer||"")+" "+(r.note||"")+" "+r.type).toLowerCase().includes(q)).map(r=>'<tr><td>'+date(r.at)+'</td><td>'+esc(r.type==="customer"?"Customer Return":"Shop Return")+'</td><td>'+esc(pname(product(r.productId)||{}))+'</td><td>'+esc(r.imei||r.qty+" units")+'</td><td>'+esc(r.location)+'</td><td>'+esc(r.condition||r.note||"")+'</td></tr>').join("")||'<tr><td colspan="6">No return records yet</td></tr>';
+}
+function renderDamages(){
+if(!$("damageRows"))return;
+let q=($("damageSearch").value||"").toLowerCase();
+$("damageRows").innerHTML=db.damages.slice().reverse().filter(d=>(pname(product(d.productId)||{})+" "+d.imeis.join(" ")+" "+d.company+" "+d.status).toLowerCase().includes(q)).map(d=>{
+let pending=d.qty-d.replacementReceived-d.lossQty;
+let ids=d.imeis.length?d.imeis.join(", "):d.qty+" units";
+let action=pending>0?'<button type="button" onclick="receiveReplacement(\''+d.id+'\')">Receive Replacement</button> <button type="button" class="secondary" onclick="markTotalLoss(\''+d.id+'\')">Mark Total Loss</button>':"Closed";
+return '<tr><td>'+date(d.at)+'</td><td>'+esc(pname(product(d.productId)||{}))+'</td><td>'+esc(ids)+'</td><td>'+esc(d.company||"-")+'</td><td>'+d.replacementReceived+'</td><td>'+pending+'</td><td>'+d.lossQty+'</td><td>'+esc(d.status)+'<br>'+action+'</td></tr>';
+}).join("")||'<tr><td colspan="8">No damage records yet</td></tr>';
+}
+function receiveReplacement(id){
+let d=db.damages.find(x=>x.id===id);if(!d)return;
+let pending=d.qty-d.replacementReceived-d.lossQty;if(pending<1)return alert("No pending quantity");
+let raw=prompt("How many replacement items received? Pending: "+pending);if(raw===null)return;
+let qty=Number(raw);if(!Number.isInteger(qty)||qty<1||qty>pending)return alert("Enter a valid quantity up to "+pending);
+let p=product(d.productId);
+if(p.type==="mobile"){
+let rawImeis=prompt("Enter "+qty+" NEW replacement IMEI(s), one per line (15 digits):");if(rawImeis===null)return;
+let arr=rawImeis.split(/[\n,]+/).map(x=>x.trim()).filter(Boolean);
+if(arr.length!==qty||arr.some(x=>!/^\d{15}$/.test(x))||new Set(arr).size!==arr.length||arr.some(x=>db.devices.some(v=>v.imei===x)))return alert("Enter exactly "+qty+" unique, unused 15-digit IMEI(s)");
+arr.forEach(imei=>db.devices.push({id:crypto.randomUUID(),productId:p.id,imei,location:d.location}));
+d.replacementImeis.push(...arr);
+}else{
+let stock=db.accessories.find(a=>a.productId===p.id&&a.location===d.location);
+if(stock)stock.qty+=qty;else db.accessories.push({productId:p.id,location:d.location,qty});
+}
+d.replacementReceived+=qty;
+let left=d.qty-d.replacementReceived-d.lossQty;d.status=left===0?(d.lossQty>0?"Closed - Partial Replacement / Loss":"Replacement Received"):"Partially Received";
+save();render();alert(qty+" replacement item(s) added to "+d.location+" stock.");
+}
+function markTotalLoss(id){
+let d=db.damages.find(x=>x.id===id);if(!d)return;
+let pending=d.qty-d.replacementReceived-d.lossQty;if(pending<1)return;
+if(!confirm("Mark remaining "+pending+" item(s) as Total Loss? This cannot be undone from this screen."))return;
+d.lossQty+=pending;d.status=d.replacementReceived>0?"Closed - Partial Replacement / Loss":"Total Loss";
+save();render();alert("Remaining quantity marked as Total Loss.");
+}
 function renderSalesHistory(){
 if(!$("salesRows"))return;
 let q=($("salesSearch").value||"").toLowerCase();
@@ -314,6 +425,7 @@ $("outHistoryRows").innerHTML=db.stockOuts.slice().reverse().filter(t=>(pname(pr
 }
 $("stockProduct").onchange=syncStock;$("transferProduct").onchange=syncTransfer;$("fromLocation").onchange=syncTransfer;
 $("saleProduct").onchange=syncSale;$("saleLocation").onchange=syncSale;
+$("returnType").onchange=syncReturnForms;$("customerReturnProduct").onchange=syncReturnForms;$("shopReturnProduct").onchange=syncReturnForms;$("shopReturnFrom").onchange=syncReturnForms;$("damageProduct").onchange=syncDamage;$("damageLocation").onchange=syncDamage;
 $("saleQty").addEventListener("input",updateSalePreview);$("saleUnitPrice").addEventListener("input",updateSalePreview);
 $("outMethod").onchange=syncOut;$("outProduct").onchange=syncOut;$("outLocation").onchange=syncOut;
 $("outScanCode").addEventListener("input",()=>{
@@ -339,6 +451,65 @@ db.products.push(p);
 if(type==="mobile")imeis.forEach(imei=>db.devices.push({id:crypto.randomUUID(),productId:p.id,imei,location:$("pLocation").value}));
 else{let qty=Number($("pQty").value);if(qty)db.accessories.push({productId:p.id,location:$("pLocation").value,qty})}
 save();e.target.reset();toggleType();render();alert("Product saved");
+};
+$("returnForm").onsubmit=e=>{
+e.preventDefault();
+let type=$("returnType").value;
+if(type==="customer"){
+let p=product($("customerReturnProduct").value),loc=$("customerReturnLocation").value,condition=$("customerReturnCondition").value;
+if(!p)return alert("Select a product");
+let record={id:crypto.randomUUID(),type:"customer",productId:p.id,location:loc,customer:$("returnCustomer").value.trim(),note:$("customerReturnNote").value.trim(),condition,at:now()};
+if(p.type==="mobile"){
+let imei=$("customerReturnImei").value.trim();
+if(!/^\d{15}$/.test(imei))return alert("Enter a valid 15-digit IMEI");
+if(db.devices.some(d=>d.imei===imei))return alert("This IMEI is already in usable stock");
+record.imei=imei;record.qty=1;
+if(condition==="good")db.devices.push({id:crypto.randomUUID(),productId:p.id,imei,location:loc});
+else addDamageRecord({productId:p.id,location:loc,qty:1,imeis:[imei],company:"",reason:"Customer returned damaged item",source:"customer-return"});
+}else{
+let qty=Number($("customerReturnQty").value);if(!Number.isInteger(qty)||qty<1)return alert("Enter a valid return quantity");
+record.qty=qty;
+if(condition==="good"){let a=db.accessories.find(x=>x.productId===p.id&&x.location===loc);if(a)a.qty+=qty;else db.accessories.push({productId:p.id,location:loc,qty});}
+else addDamageRecord({productId:p.id,location:loc,qty,company:"",reason:"Customer returned damaged item",source:"customer-return"});
+}
+db.returns.push(record);
+}else{
+let p=product($("shopReturnProduct").value),from=$("shopReturnFrom").value,to="Main Godown",staff=$("shopReturnStaff").value.trim();
+if(!p)return alert("Select a product");
+if(from===to)return alert("Select a shop");
+let record={id:crypto.randomUUID(),type:"shop",productId:p.id,location:to,from,at:now(),note:$("shopReturnNote").value.trim(),staff};
+if(p.type==="mobile"){
+let d=db.devices.find(x=>x.id===$("shopReturnImei").value&&x.productId===p.id&&x.location===from);if(!d)return alert("IMEI not available at selected shop");
+d.location=to;record.imei=d.imei;record.qty=1;
+}else{
+let qty=Number($("shopReturnQty").value),src=db.accessories.find(x=>x.productId===p.id&&x.location===from);
+if(!Number.isInteger(qty)||qty<1||!src||src.qty<qty)return alert("Not enough stock at selected shop");
+src.qty-=qty;let dst=db.accessories.find(x=>x.productId===p.id&&x.location===to);if(dst)dst.qty+=qty;else db.accessories.push({productId:p.id,location:to,qty});record.qty=qty;
+}
+db.returns.push(record);
+}
+save();e.target.reset();syncReturnForms();render();alert("Return saved successfully.");
+};
+$("damageForm").onsubmit=e=>{
+e.preventDefault();
+let p=product($("damageProduct").value),loc=$("damageLocation").value,company=$("damageCompany").value.trim(),reason=$("damageReason").value.trim();
+if(!p)return alert("Select a product");
+if(!reason)return alert("Enter damage reason");
+if(p.type==="mobile"){
+let ids=Array.from($("damageImei").selectedOptions).map(o=>o.value);
+if(!ids.length)return alert("Select at least one damaged IMEI");
+let devices=ids.map(id=>db.devices.find(d=>d.id===id&&d.productId===p.id&&d.location===loc));
+if(devices.some(d=>!d))return alert("One or more IMEIs are no longer available");
+let imeis=devices.map(d=>d.imei);
+db.devices=db.devices.filter(d=>!ids.includes(d.id));
+addDamageRecord({productId:p.id,location:loc,qty:ids.length,imeis,company,reason});
+}else{
+let qty=Number($("damageQty").value),stock=db.accessories.find(a=>a.productId===p.id&&a.location===loc);
+if(!Number.isInteger(qty)||qty<1||!stock||stock.qty<qty)return alert("Not enough stock at selected location");
+stock.qty-=qty;
+addDamageRecord({productId:p.id,location:loc,qty,company,reason});
+}
+save();e.target.reset();syncDamage();render();alert("Damage recorded. Items removed from usable stock.");
 };
 $("stockForm").onsubmit=e=>{
 e.preventDefault();let p=product($("stockProduct").value),loc=$("stockLocation").value;if(!p)return alert("Add a product first");
@@ -408,6 +579,9 @@ $("locationFilter").value=activeLocation;
 $("saleLocation").value=activeLocation;
 addOptions();
 $("saleProduct").innerHTML=db.products.map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");
+$("customerReturnProduct").innerHTML=db.products.map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");
+$("shopReturnProduct").innerHTML=db.products.map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");
+$("damageProduct").innerHTML=db.products.map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");
 syncSale();renderSaleCart();renderSalesHistory();
 if($("outProduct")){$("outProduct").innerHTML=db.products.map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");syncOut();}
 let loc=activeLocation;
@@ -415,7 +589,7 @@ let devices=db.devices.filter(d=>loc==="All Locations"||d.location===loc),access
 $("totalProducts").textContent=db.products.length;$("totalMobiles").textContent=devices.length;$("totalAccessories").textContent=accessories.reduce((s,a)=>s+a.qty,0);$("totalTransfers").textContent=db.transfers.length;
 $("locationRows").innerHTML=locations.map(l=>`<tr><td>${l}</td><td>${db.devices.filter(d=>d.location===l).length}</td><td>${db.accessories.filter(a=>a.location===l).reduce((s,a)=>s+a.qty,0)}</td></tr>`).join("");
 $("totalTransfers").textContent=db.transfers.length;
-renderProducts();
+renderProducts();renderReturns();renderDamages();syncReturnForms();syncDamage();
 $("recent").innerHTML=db.transfers.slice(-5).reverse().map(t=>`<p>${esc(t.imei||t.qty+" units")} · ${esc(t.from)} → ${esc(t.to)} · ${date(t.at)}</p>`).join("")||"No transfers yet";
 renderHistory();renderOutHistory();renderSalesHistory();
 }
