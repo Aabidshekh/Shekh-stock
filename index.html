@@ -44,6 +44,8 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <button onclick="show('stock')">Stock In</button>
 <button onclick="show('transfer')">Transfer</button>
 <button onclick="show('history')">Transfer History</button>
+<button onclick="show('stockout')">Stock Out</button>
+<button onclick="show('outHistory')">Stock Out History</button>
 </nav>
 <main>
 <section id="dashboard" class="active">
@@ -113,13 +115,45 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <div class="tablewrap"><table><thead><tr><th>Date & Time</th><th>Product</th><th>IMEI / Qty</th><th>From</th><th>To</th><th>Transferred By</th></tr></thead><tbody id="historyRows"></tbody></table></div>
 </div>
 </section>
+<section id="stockout">
+<h2>Stock Out</h2>
+<p class="muted">Stock reduction by barcode scan or manual entry. Mobile stock is removed by individual IMEI.</p>
+<div class="panel">
+<form id="stockOutForm">
+<label>Entry Method</label>
+<select id="outMethod"><option value="scan">Barcode Scan</option><option value="manual">Manual Entry</option></select>
+<label>Location</label><select id="outLocation"><option>Main Godown</option><option>Shop 1</option><option>Shop 2</option><option>Shop 3</option></select>
+<div id="outScanFields">
+<label>Scan Barcode / IMEI</label><input id="outScanCode" autocomplete="off" placeholder="Scan mobile IMEI or accessory barcode">
+<p class="muted">Mobile: scan the 15-digit IMEI. Accessory: scan its product barcode.</p>
+</div>
+<div id="outManualFields" style="display:none">
+<label>Product</label><select id="outProduct"></select>
+<div id="outManualMobile"><label>Select IMEI</label><select id="outImei"></select></div>
+<div id="outManualAccessory" style="display:none"><label>Quantity</label><input id="outQty" type="number" min="1" value="1"></div>
+</div>
+<div id="outScanAccessoryQty" style="display:none"><label>Accessory Quantity</label><input id="outScanQty" type="number" min="1" value="1"></div>
+<label>Staff Name</label><input id="outStaff" required placeholder="Staff name">
+<label>Reason / Note</label><input id="outNote" placeholder="Sale, damaged, customer return, etc.">
+<button type="submit">Confirm Stock Out</button>
+</form>
+</div>
+</section>
+<section id="outHistory">
+<h2>Stock Out History</h2><p class="muted">All stock reductions with date, time, location and staff.</p>
+<div class="panel">
+<input id="outHistorySearch" placeholder="Search product, IMEI, location or staff" oninput="renderOutHistory()">
+<div class="tablewrap"><table><thead><tr><th>Date & Time</th><th>Product</th><th>IMEI / Qty</th><th>Location</th><th>Method</th><th>Staff</th><th>Note</th></tr></thead><tbody id="outHistoryRows"></tbody></table></div>
+</div>
+</section>
 </main>
 <script>
 const KEY="shekh-stock-v3";
 const locations=["Main Godown","Shop 1","Shop 2","Shop 3"];
 let db;
 try{db=JSON.parse(localStorage.getItem(KEY))}catch(e){}
-if(!db)db={products:[],devices:[],accessories:[],transfers:[]};
+if(!db)db={products:[],devices:[],accessories:[],transfers:[],stockOuts:[]};
+if(!Array.isArray(db.stockOuts))db.stockOuts=[];
 const $=id=>document.getElementById(id);
 const save=()=>localStorage.setItem(KEY,JSON.stringify(db));
 const esc=s=>String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -132,7 +166,29 @@ function toggleType(){let m=$("pType").value==="mobile";$("mobileFields").style.
 function addOptions(){let opts=db.products.map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");$("stockProduct").innerHTML=opts;$("transferProduct").innerHTML=opts;syncStock();syncTransfer()}
 function syncStock(){let p=product($("stockProduct").value),m=p&&p.type==="mobile";$("stockMobile").style.display=m?"block":"none";$("stockAccessory").style.display=m?"none":"block"}
 function syncTransfer(){let p=product($("transferProduct").value),m=p&&p.type==="mobile";$("transferMobile").style.display=m?"block":"none";$("transferAccessory").style.display=m?"none":"block";let from=$("fromLocation").value;$("transferImei").innerHTML=db.devices.filter(d=>d.productId===p?.id&&d.location===from).map(d=>`<option value="${d.id}">${d.imei}</option>`).join("")}
+function syncOut(){
+let manual=$("outMethod").value==="manual";
+$("outScanFields").style.display=manual?"none":"block";
+$("outManualFields").style.display=manual?"block":"none";
+let p=product($("outProduct").value),mobile=p&&p.type==="mobile";
+$("outManualMobile").style.display=mobile?"block":"none";
+$("outManualAccessory").style.display=mobile?"none":"block";
+$("outScanAccessoryQty").style.display=!manual&&$("outScanCode").dataset.kind==="accessory"?"block":"none";
+let loc=$("outLocation").value;
+$("outImei").innerHTML=db.devices.filter(d=>d.productId===p?.id&&d.location===loc).map(d=>`<option value="${d.id}">${d.imei}</option>`).join("");
+}
+function renderOutHistory(){
+if(!$("outHistoryRows"))return;
+let q=($("outHistorySearch").value||"").toLowerCase();
+$("outHistoryRows").innerHTML=db.stockOuts.slice().reverse().filter(t=>(pname(product(t.productId)||{})+" "+(t.imei||"")+" "+t.location+" "+t.staff+" "+(t.note||"")).toLowerCase().includes(q)).map(t=>`<tr><td>${date(t.at)}</td><td>${esc(pname(product(t.productId)||{}))}</td><td>${esc(t.imei||t.qty+" units")}</td><td>${esc(t.location)}</td><td>${esc(t.method==="scan"?"Barcode Scan":"Manual Entry")}</td><td>${esc(t.staff)}</td><td>${esc(t.note||"")}</td></tr>`).join("")||"<tr><td colspan='7'>No stock out records yet</td></tr>";
+}
 $("stockProduct").onchange=syncStock;$("transferProduct").onchange=syncTransfer;$("fromLocation").onchange=syncTransfer;
+$("outMethod").onchange=syncOut;$("outProduct").onchange=syncOut;$("outLocation").onchange=syncOut;
+$("outScanCode").addEventListener("input",()=>{
+let code=$("outScanCode").value.trim(),p=db.products.find(x=>x.barcode&&x.barcode.toLowerCase()===code.toLowerCase());
+$("outScanCode").dataset.kind=p&&p.type==="accessory"?"accessory":"";
+$("outScanAccessoryQty").style.display=p&&p.type==="accessory"?"block":"none";
+});
 $("productForm").onsubmit=e=>{
 e.preventDefault();
 let type=$("pType").value,name=$("pName").value.trim(),barcode=$("pBarcode").value.trim();
@@ -162,6 +218,42 @@ let a=db.accessories.find(x=>x.productId===p.id&&x.location===loc);if(a)a.qty+=q
 }
 save();e.target.reset();render();alert("Stock added");
 };
+$("stockOutForm").onsubmit=e=>{
+e.preventDefault();
+let method=$("outMethod").value,loc=$("outLocation").value,staff=$("outStaff").value.trim(),note=$("outNote").value.trim();
+if(!staff)return alert("Enter staff name");
+let p,device=null,imei="",qty=1;
+if(method==="scan"){
+let code=$("outScanCode").value.trim();if(!code)return alert("Scan barcode or enter IMEI");
+if(/^\d{15}$/.test(code)){
+device=db.devices.find(d=>d.imei===code&&d.location===loc);if(!device)return alert("This IMEI is not available at the selected location");
+p=product(device.productId);imei=device.imei;
+}else{
+p=db.products.find(x=>x.type==="accessory"&&x.barcode&&x.barcode.toLowerCase()===code.toLowerCase());
+if(!p)return alert("Barcode not found. Check product barcode or use Manual Entry");
+qty=Number($("outScanQty").value);
+}
+}else{
+p=product($("outProduct").value);if(!p)return alert("Select a product");
+if(p.type==="mobile"){
+device=db.devices.find(d=>d.id===$("outImei").value&&d.location===loc&&d.productId===p.id);
+if(!device)return alert("No available IMEI at this location");
+imei=device.imei;
+}else qty=Number($("outQty").value);
+}
+if(!p)return alert("Product not found");
+let t={id:crypto.randomUUID(),productId:p.id,location:loc,staff,note,at:now(),method,qty};
+if(p.type==="mobile"){
+if(!device)return alert("IMEI not available");
+db.devices=db.devices.filter(d=>d.id!==device.id);t.imei=imei;t.qty=1;
+}else{
+let stock=db.accessories.find(a=>a.productId===p.id&&a.location===loc);
+if(!Number.isInteger(qty)||qty<1)return alert("Enter a valid quantity");
+if(!stock||stock.qty<qty)return alert("Not enough stock at selected location");
+stock.qty-=qty;
+}
+db.stockOuts.push(t);save();e.target.reset();$("outMethod").value="scan";$("outScanCode").dataset.kind="";$("outScanAccessoryQty").style.display="none";syncOut();render();alert("Stock out completed successfully");
+};
 $("transferForm").onsubmit=e=>{
 e.preventDefault();let p=product($("transferProduct").value),from=$("fromLocation").value,to=$("toLocation").value,staff=$("transferStaff").value.trim();
 if(!p||!staff)return alert("Complete all required fields");if(from===to)return alert("Select different locations");
@@ -177,6 +269,7 @@ db.transfers.push(t);save();e.target.reset();render();alert("Transfer completed 
 };
 function render(){
 addOptions();
+if($("outProduct")){$("outProduct").innerHTML=db.products.map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");syncOut();}
 let loc=$("locationFilter").value;
 let devices=db.devices.filter(d=>loc==="All Locations"||d.location===loc),accessories=db.accessories.filter(a=>loc==="All Locations"||a.location===loc);
 $("totalProducts").textContent=db.products.length;$("totalMobiles").textContent=devices.length;$("totalAccessories").textContent=accessories.reduce((s,a)=>s+a.qty,0);$("totalTransfers").textContent=db.transfers.length;
@@ -188,7 +281,7 @@ else db.accessories.filter(a=>a.productId===p.id&&(!q||pname(p).toLowerCase().in
 });
 $("productRows").innerHTML=rows.join("")||"<tr><td colspan='5'>No stock found</td></tr>";
 $("recent").innerHTML=db.transfers.slice(-5).reverse().map(t=>`<p>${esc(t.imei||t.qty+" units")} · ${esc(t.from)} → ${esc(t.to)} · ${date(t.at)}</p>`).join("")||"No transfers yet";
-renderHistory();
+renderHistory();renderOutHistory();
 }
 function renderHistory(){
 let q=($("historySearch").value||"").toLowerCase();
