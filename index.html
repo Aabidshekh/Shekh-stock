@@ -251,7 +251,7 @@ w.document.close();
 function completeSale(){
 let staff=$("saleStaff").value.trim();if(!staff)return alert("Enter staff name");if(!saleCart.length)return alert("Add at least one product");
 let loc=$("saleLocation").value;
-for(let x of saleCart){let p=product(x.productId);if(!p)return alert("A product is missing");if(p.type==="mobile"){if(!db.devices.some(d=>d.imei===x.imei&&d.location===loc&&d.productId===p.id))return alert("IMEI stock changed. Please refresh invoice items");}else{let stock=db.accessories.find(a=>a.productId===p.id&&a.location===loc)?.qty||0;if(stock<x.qty)return alert("Not enough stock for "+pname(p));}}
+for(let x of saleCart){if(x.location!==loc)return alert("All invoice items must be from the selected sale location. Clear the invoice and add items again.");let p=product(x.productId);if(!p)return alert("A product is missing");if(p.type==="mobile"){if(!db.devices.some(d=>d.imei===x.imei&&d.location===loc&&d.productId===p.id))return alert("IMEI stock changed. Please refresh invoice items");}else{let stock=db.accessories.find(a=>a.productId===p.id&&a.location===loc)?.qty||0;if(stock<x.qty)return alert("Not enough stock for "+pname(p));}}
 let subtotal=saleCart.reduce((s,x)=>s+x.amount,0),discount=Number($("saleDiscount").value)||0;if(discount<0||discount>subtotal)return alert("Discount cannot exceed subtotal");
 let seq=db.sales.length+1,invoiceNo="SHS-"+new Date().toISOString().slice(0,10).replace(/-/g,"")+"-"+String(seq).padStart(4,"0");
 let sale={id:crypto.randomUUID(),invoiceNo,at:now(),location:loc,staff,customer:$("saleCustomer").value.trim(),phone:$("salePhone").value.trim(),payment:$("salePayment").value,items:saleCart.map(x=>({...x})),subtotal,discount,total:subtotal-discount};
