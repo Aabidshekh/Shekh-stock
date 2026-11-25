@@ -94,7 +94,7 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <label>Selling Price (₹ per unit)</label><input id="pSalePrice" type="number" min="0" step="0.01" value="0" placeholder="Selling price">
 <label>Minimum Stock Alert (units)</label><input id="pMinStock" type="number" min="0" step="1" value="0" placeholder="0 = alert disabled"><label>Purchase Price (₹ per unit) — Owner entry</label><input id="pPurchasePrice" type="number" min="0" step="0.01" placeholder="Optional; not shown in stock list or sales invoice">
 <label>Brand</label><input id="pBrand" placeholder="Brand">
-<label>Category</label><input id="pCategory" list="productCategoryOptions" required placeholder="e.g. Charger, Earphone, Cable, Mobile"><datalist id="productCategoryOptions"><option value="Mobile"><option value="Charger"><option value="Earphone"><option value="Cable"><option value="Cover"><option value="Tempered Glass"><option value="Battery"><option value="Power Bank"><option value="Speaker"><option value="Watch"><option value="Other Accessories"></datalist><label>Model (optional)</label><input id="pModel" placeholder="Model number / variant">
+<label>Category</label><input id="pCategory" list="productCategoryOptions" required value="Mobile" placeholder="e.g. Charger, Earphone, Cable, Mobile"><datalist id="productCategoryOptions"><option value="Mobile"><option value="Charger"><option value="Earphone"><option value="Cable"><option value="Cover"><option value="Tempered Glass"><option value="Battery"><option value="Power Bank"><option value="Speaker"><option value="Watch"><option value="Other Accessories"></datalist><label>Model (optional)</label><input id="pModel" placeholder="Model number / variant">
 <label>Barcode / SKU</label><input id="pBarcode" placeholder="Optional">
 <label>Opening Location</label><select id="pLocation"></select>
 <div id="mobileFields"><label>IMEI (one per line, 15 digits)</label><textarea id="pImeis" rows="3"></textarea></div>
@@ -588,7 +588,7 @@ if(itemRows.length){if(!groups.has(category))groups.set(category,[]);groups.get(
 });
 let rows=[];
 [...groups.keys()].sort((a,b)=>a.localeCompare(b)).forEach(category=>{
-const items=groups.get(category),expanded=expandedProductCategories.has(category)||!!q,encoded=encodeURIComponent(category);
+const items=groups.get(category),expanded=expandedProductCategories.has(category)||!!q,encoded=encodeURIComponent(category).replaceAll("'","%27");
 rows.push('<tr class="category-group-row"><td colspan="7"><button type="button" class="category-toggle" aria-expanded="'+expanded+'" onclick="toggleProductCategory(decodeURIComponent(\''+encoded+'\'))"><span class="category-chevron">'+(expanded?'▾':'▸')+'</span> '+esc(category)+' <span class="category-count">'+items.length+' stock entries</span></button></td></tr>');
 if(expanded)rows.push(...items);
 });
@@ -653,7 +653,7 @@ if(new Set(imeis).size!==imeis.length||imeis.some(x=>db.devices.some(d=>d.imei==
 db.products.push(p);
 if(type==="mobile")imeis.forEach(imei=>db.devices.push({id:crypto.randomUUID(),productId:p.id,imei,location:$("pLocation").value}));
 else{let qty=Number($("pQty").value);if(qty)db.accessories.push({productId:p.id,location:$("pLocation").value,qty})}
-save();e.target.reset();toggleType();render();alert("Product saved");
+save();e.target.reset();toggleType();toggleCustomIcon();render();alert("Product saved");
 };
 $("returnForm").onsubmit=e=>{
 e.preventDefault();
