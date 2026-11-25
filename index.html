@@ -109,7 +109,7 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <div class="panel"><h3>Manage Products</h3><p class="muted">Yahan se product details edit karein. Delete sirf tab hoga jab product ka stock zero ho aur uska koi transaction history record na ho.</p><input id="manageProductSearch" placeholder="Search product, brand, model or barcode" oninput="renderProductManager()"><div class="tablewrap"><table><thead><tr><th>Icon</th><th>Product</th><th>Category</th><th>Type</th><th>Total Stock</th><th>Barcode / SKU</th><th>Action</th></tr></thead><tbody id="productManageRows"></tbody></table></div></div>
 <div class="panel" id="productEditPanel" style="display:none"><h3>Edit Product</h3><form id="productEditForm"><input id="editProductId" type="hidden"><label>Product Name</label><input id="editProductName" required maxlength="100"><div class="row"><div><label>Brand</label><input id="editProductBrand"></div><div><label>Model / Category</label><input id="editProductModel"></div></div><div class="row"><div><label>Selling Price (₹)</label><input id="editProductSalePrice" type="number" min="0" step="0.01" required></div><div><label>Purchase Price (₹)</label><input id="editProductPurchasePrice" type="number" min="0" step="0.01"></div></div><div class="row"><div><label>Minimum Stock Alert</label><input id="editProductMinStock" type="number" min="0" step="1"></div><div><label>Barcode / SKU</label><input id="editProductBarcode" maxlength="80"></div></div><label>Category</label><input id="editProductCategory" list="productCategoryOptions" required><label>Product Icon</label><select id="editProductIcon" onchange="toggleEditCustomIcon()"><option value="phone">Mobile phone</option><option value="charger">Fast charger / adapter</option><option value="earbuds">Earbuds / headphones</option><option value="battery">Battery / power bank</option><option value="box">Accessories / other</option><option value="case">Cover / glass</option><option value="watch">Smartwatch</option><option value="laptop">Laptop / tablet</option><option value="parts">Repair parts</option><option value="gadget">Gadget</option><option value="custom">Other — choose your own emoji</option></select><div id="editCustomIconWrap" style="display:none"><label>Choose Your Icon (Emoji)</label><input id="editCustomIcon" maxlength="8" placeholder="e.g. 🖨️ 💡 🎮 🔊"></div><button type="submit">Save Changes</button> <button type="button" class="secondary" onclick="cancelProductEdit()">Cancel</button></form></div>
 <div class="panel">
-<input id="productSearch" placeholder="Search product, barcode or IMEI" oninput="renderProducts()">
+<div class="row"><div><label>Search Product / IMEI</label><input id="productSearch" placeholder="Search product, barcode or IMEI" oninput="renderProducts()"></div><div><label>Filter by Category</label><select id="productCategoryFilter" onchange="renderProducts()"><option value="All Categories">All Categories</option></select></div></div>
 <div class="tablewrap"><table><thead><tr><th>Icon</th><th>Product</th><th>Type</th><th>IMEI / Barcode</th><th>Location</th><th>Stock</th><th>Sale Price</th></tr></thead><tbody id="productRows"></tbody></table></div>
 </div>
 </section>
@@ -574,9 +574,10 @@ renderProducts();
 }
 function renderProducts(){
 if(!$("productRows"))return;
-const loc=$("locationFilter").value,q=($("productSearch").value||"").toLowerCase(),groups=new Map();
+const loc=$("locationFilter").value,q=($("productSearch").value||"").toLowerCase(),selectedCategory=$("productCategoryFilter")?.value||"All Categories",groups=new Map();
 db.products.forEach(p=>{
 const category=productCategory(p);
+if(selectedCategory!=="All Categories"&&category!==selectedCategory)return;
 const matches=(pname(p)+" "+category+" "+(p.barcode||"")).toLowerCase().includes(q);
 let itemRows=[];
 if(p.type==="mobile"){
@@ -799,7 +800,7 @@ let devices=db.devices.filter(d=>loc==="All Locations"||d.location===loc),access
 $("totalProducts").textContent=db.products.length;$("totalMobiles").textContent=devices.length;$("totalAccessories").textContent=accessories.reduce((s,a)=>s+a.qty,0);$("totalTransfers").textContent=db.transfers.length;
 $("locationRows").innerHTML=locations.map(l=>`<tr><td>${l}</td><td>${db.devices.filter(d=>d.location===l).length}</td><td>${db.accessories.filter(a=>a.location===l).reduce((s,a)=>s+a.qty,0)}</td></tr>`).join("");
 $("totalTransfers").textContent=db.transfers.length;
-renderProductManager();renderProducts();renderReturns();renderDamages();syncReturnForms();syncDamage();renderLocationManager();renderLowStock();renderAdjustments();renderPurchases();if($("reportStockRows"))renderReports();
+renderProductManager();if($("productCategoryFilter")){const filter=$("productCategoryFilter"),previous=filter.value,categories=[...new Set(db.products.map(productCategory))].sort((a,b)=>a.localeCompare(b));filter.innerHTML='<option value="All Categories">All Categories</option>'+categories.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join("");filter.value=categories.includes(previous)?previous:"All Categories";}renderProducts();renderReturns();renderDamages();syncReturnForms();syncDamage();renderLocationManager();renderLowStock();renderAdjustments();renderPurchases();if($("reportStockRows"))renderReports();
 $("recent").innerHTML=db.transfers.slice(-5).reverse().map(t=>`<p>${esc(t.imei||t.qty+" units")} · ${esc(t.from)} → ${esc(t.to)} · ${date(t.at)}</p>`).join("")||"No transfers yet";
 renderHistory();renderOutHistory();renderSalesHistory();
 }
