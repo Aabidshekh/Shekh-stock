@@ -278,6 +278,7 @@ const product=id=>db.products.find(p=>p.id===id);
 const pname=p=>[p.brand,p.name,p.model].filter(Boolean).join(" ");
 const productCategory=p=>(p&&p.category?String(p.category):"Uncategorized");
 let expandedProductCategories=new Set();
+let categoryFilterInitialized=false;
 function iconMarkup(value){
 const aliases={"📱":"phone","🔌":"charger","🎧":"earbuds","🔋":"battery","📦":"box","🛡️":"case","⌚":"watch","💻":"laptop","🔧":"parts","🎮":"gadget"};
 const key=aliases[value]||value||"box";
@@ -327,7 +328,7 @@ return names.map(name=>'<option value="'+esc(name)+'"'+(name===selected?' select
 }
 function renderLocationControls(){
 const configs=[["locationFilter",false],["pLocation",false],["stockLocation",false],["fromLocation",false],["toLocation",false],["outLocation",false],["customerReturnLocation",false],["shopReturnFrom",true],["damageLocation",false],["saleLocation",false],["adjustLocation",false],["purchaseLocation",false]];
-configs.forEach(([id,shopsOnly])=>{let el=$(id);if(!el)return;let selected=el.value;if(id==="locationFilter"||id==="saleLocation")selected=activeLocation;el.innerHTML=locationOptions(selected,shopsOnly);if(!el.value&&el.options.length)el.value=el.options[0].value;});
+configs.forEach(([id,shopsOnly])=>{let el=$(id);if(!el)return;let selected=el.value;if(id==="locationFilter"||id==="saleLocation")selected=activeLocation;if(id==="damageLocation"&&!isGodownView()){el.innerHTML=locationOptions(activeLocation,true);el.value=activeLocation;return;}el.innerHTML=locationOptions(selected,shopsOnly);if(!el.value&&el.options.length)el.value=el.options[0].value;});
 }
 function locationInUse(name){
 const has=(arr,key)=>Array.isArray(arr)&&arr.some(x=>x&&x[key]===name);
@@ -820,7 +821,7 @@ let devices=db.devices.filter(d=>scope.includes(d.location)),accessories=db.acce
 $("totalProducts").textContent=db.products.filter(p=>productLocationBreakdown(p).length>0).length;$("totalMobiles").textContent=devices.length;$("totalAccessories").textContent=accessories.reduce((s,a)=>s+a.qty,0);$("totalTransfers").textContent=db.transfers.length;
 $("locationRows").innerHTML=scopedLocations().map(l=>`<tr><td>${esc(l)}</td><td>${db.devices.filter(d=>d.location===l).length}</td><td>${db.accessories.filter(a=>a.location===l).reduce((s,a)=>s+a.qty,0)}</td></tr>`).join("");
 $("totalTransfers").textContent=db.transfers.length;
-renderProductManager();if($("productCategoryFilter")){const filter=$("productCategoryFilter"),previous=filter.value,categories=[...new Set(db.products.map(productCategory))].sort((a,b)=>a.localeCompare(b));filter.innerHTML='<option value="All Categories">All Categories</option>'+categories.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join("");filter.value=categories.includes(previous)?previous:"All Categories";}renderProducts();renderReturns();renderDamages();syncReturnForms();syncDamage();renderLocationManager();renderLowStock();renderAdjustments();renderPurchases();if($("reportStockRows"))renderReports();
+renderProductManager();if($("productCategoryFilter")){const filter=$("productCategoryFilter"),previous=filter.value,categories=[...new Set(db.products.map(productCategory))].sort((a,b)=>a.localeCompare(b));filter.innerHTML='<option value="All Categories">All Categories</option>'+categories.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join("");filter.value=categoryFilterInitialized&&categories.includes(previous)?previous:"All Categories";categoryFilterInitialized=true;}renderProducts();renderReturns();renderDamages();syncReturnForms();syncDamage();renderLocationManager();renderLowStock();renderAdjustments();renderPurchases();if($("reportStockRows"))renderReports();
 $("recent").innerHTML=db.transfers.filter(t=>isGodownView()||t.from===activeLocation||t.to===activeLocation).slice(-5).reverse().map(t=>`<p>${esc(t.imei||t.qty+" units")} · ${esc(t.from)} → ${esc(t.to)} · ${date(t.at)}</p>`).join("")||"No transfers yet";
 renderHistory();renderOutHistory();renderSalesHistory();
 }
