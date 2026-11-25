@@ -39,7 +39,7 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 </header>
 <nav>
 <button onclick="show('dashboard')">Dashboard</button>
-<button onclick="show('productList')">Product List</button>
+<button onclick="show('productList')">Product List</button><button onclick="show('barcodes')">Barcode & Print</button>
 <button onclick="show('addProduct')">Add Product</button>
 <button onclick="show('sales')">Sale / Invoice</button>
 <button onclick="show('salesHistory')">Sales History</button>
@@ -103,7 +103,7 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 </form>
 </div>
 </section>
-<section id="productList">
+<section id="barcodes"><h2>Barcode Generate & Print</h2><div class="panel"><form id="barcodeForm"><label>Product</label><select id="barcodeProduct"></select><label>Location</label><select id="barcodeLocation"></select><label>Barcode Item</label><select id="barcodeItem"></select><label>Copies</label><input id="barcodeCopies" type="number" min="1" max="100" value="1"><label>Label Size</label><select id="barcodeSize"><option value="50x30">50 x 30 mm</option><option value="70x35">70 x 35 mm</option></select><button type="submit">Print Barcode Label</button></form></div></section><section id="productList">
 <h2>Product List & Current Stock</h2>
 <p class="muted">This is your stock view. Adding a product is kept in a separate section.</p>
 <div class="panel">
@@ -492,6 +492,36 @@ if(!$("salesRows"))return;
 let q=($("salesSearch").value||"").toLowerCase();
 $("salesRows").innerHTML=db.sales.slice().reverse().filter(s=>(s.invoiceNo+" "+s.customer+" "+s.phone+" "+s.staff).toLowerCase().includes(q)).map(s=>`<tr><td>${esc(s.invoiceNo)}</td><td>${date(s.at)}</td><td>${esc(s.customer||"Walk-in")}</td><td>${esc(s.location)}</td><td>₹${s.total.toFixed(2)}</td><td>${esc(s.payment)}</td><td><button type="button" onclick="showInvoice(db.sales.find(x=>x.id==='${s.id}'))">View / Print</button></td></tr>`).join("")||"<tr><td colspan='7'>No sales yet</td></tr>";
 }
+
+function code39Svg(value){
+const p={"0":"nnnwwnwnn","1":"wnnwnnnnw","2":"nnwwnnnnw","3":"wnwwnnnnn","4":"nnnwwnnnw","5":"wnnwwnnnn","6":"nnwwwnnnn","7":"nnnwnnwnw","8":"wnnwnnwnn","9":"nnwwnnwnn","A":"wnnnnwnnw","B":"nnwnnwnnw","C":"wnwnnwnnn","D":"nnnnwwnnw","E":"wnnnwwnnn","F":"nnwnwwnnn","G":"nnnnnwwnw","H":"wnnnnwwnn","I":"nnwnnwwnn","J":"nnnnwwwnn","K":"wnnnnnnww","L":"nnwnnnnww","M":"wnwnnnnwn","N":"nnnnwnnww","O":"wnnnwnnwn","P":"nnwnwnnwn","Q":"nnnnnnwww","R":"wnnnnnwwn","S":"nnwnnnwwn","T":"nnnnwnwwn","U":"wwnnnnnnw","V":"nwwnnnnnw","W":"wwwnnnnnn","X":"nwnnwnnnw","Y":"wwnnwnnnn","Z":"nwwnwnnnn","-":"nwnnnnwnw",".":"wwnnnnwnn"," ":"nwwnnnwnn","$":"nwnwnwnnn","/":"nwnwnnnwn","+":"nwnnnwnwn","%":"nnnwnwnwn"};
+const s=String(value||"").toUpperCase();if(!s||![...s].every(c=>p[c]))throw new Error("Invalid Code 39 value");
+const all="*"+s+"*";let x=10,bars=[];
+for(let a=0;a<all.length;a++){const pat=p[all[a]];for(let j=0;j<9;j++){const width=pat[j]==="w"?5:2;if(j%2===0)bars.push("<rect x='"+x+"' y='0' width='"+width+"' height='50'/>");x+=width;}if(a<all.length-1)x+=2;}
+return "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 "+(x+10)+" 50'><rect width='100%' height='100%' fill='white'/>"+bars.join("")+"</svg>";
+}
+function renderBarcodeOptions(){
+const ps=$("barcodeProduct"),ls=$("barcodeLocation"),it=$("barcodeItem");if(!ps||!ls||!it)return;
+const a=ps.value,b=ls.value,c=it.value;
+ps.innerHTML=db.products.map(p=>"<option value='"+esc(p.id)+"'>"+esc(pname(p))+"</option>").join("");
+ls.innerHTML=locations.map(l=>"<option value='"+esc(l)+"'>"+esc(l)+"</option>").join("");
+if(db.products.some(p=>p.id===a))ps.value=a;if(locations.includes(b))ls.value=b;
+const p=product(ps.value),items=p&&p.type==="mobile"?db.devices.filter(d=>d.productId===p.id&&d.location===ls.value).map(d=>({id:d.id,code:d.imei})):p?[{id:"product",code:p.barcode||""}]:[];
+it.innerHTML=items.map(x=>"<option value='"+esc(x.id)+"' data-code='"+esc(x.code)+"'>"+esc(x.code||"Barcode missing")+"</option>").join("");
+if(items.some(x=>x.id===c))it.value=c;
+}
+function printBarcodeLabel(){
+const p=product($("barcodeProduct").value),o=$("barcodeItem").selectedOptions[0];if(!p||!o)return alert("Product/location stock select karein.");
+const code=o.dataset.code||"",copies=p.type==="mobile"?1:Number($("barcodeCopies").value);if(!code)return alert("Barcode missing hai.");
+if(!Number.isInteger(copies)||copies<1||copies>100)return alert("Copies 1 se 100 honi chahiye.");
+let svg;try{svg=code39Svg(code)}catch(e){return alert(e.message)}
+const z=$("barcodeSize").value.split("x").map(Number);let labels="";
+for(let i=0;i<copies;i++)labels+="<div class='label'><b>"+esc(pname(p))+"</b>"+svg+"<small>"+esc(code)+"</small></div>";
+const w=window.open("","_blank","width=600,height=600");if(!w)return alert("Pop-up allow karein.");
+const css="@page{size:"+z[0]+"mm "+z[1]+"mm;margin:0}body{margin:0;font-family:Arial}.label{width:"+z[0]+"mm;height:"+z[1]+"mm;box-sizing:border-box;padding:2mm;display:flex;flex-direction:column;align-items:center;justify-content:center;page-break-after:always}.label svg{width:100%;max-height:"+(z[1]-12)+"mm;fill:black}b{font-size:9pt}small{font-size:8pt}";
+w.document.write("<html><head><style>"+css+"</style></head><body>"+labels+"<script>window.onload=function(){window.print()}<"+"/script></body></html>");w.document.close();
+}
+
 function renderProducts(){
 if(!$("productRows"))return;
 let loc=$("locationFilter").value,q=($("productSearch").value||"").toLowerCase(),rows=[];
@@ -506,6 +536,7 @@ if(!$("outHistoryRows"))return;
 let q=($("outHistorySearch").value||"").toLowerCase();
 $("outHistoryRows").innerHTML=db.stockOuts.slice().reverse().filter(t=>(pname(product(t.productId)||{})+" "+(t.imei||"")+" "+t.location+" "+t.staff+" "+(t.note||"")).toLowerCase().includes(q)).map(t=>`<tr><td>${date(t.at)}</td><td>${esc(pname(product(t.productId)||{}))}</td><td>${esc(t.imei||t.qty+" units")}</td><td>${esc(t.location)}</td><td>${esc(t.method==="scan"?"Barcode Scan":"Manual Entry")}</td><td>${esc(t.staff)}</td><td>${esc(t.note||"")}</td></tr>`).join("")||"<tr><td colspan='7'>No stock out records yet</td></tr>";
 }
+$("barcodeProduct").onchange=renderBarcodeOptions;$("barcodeLocation").onchange=renderBarcodeOptions;$("barcodeForm").onsubmit=e=>{e.preventDefault();printBarcodeLabel();};
 $("stockProduct").onchange=syncStock;$("transferProduct").onchange=syncTransfer;$("fromLocation").onchange=syncTransfer;
 $("saleProduct").onchange=syncSale;$("saleLocation").onchange=syncSale;
 $("returnType").onchange=syncReturnForms;$("customerReturnProduct").onchange=syncReturnForms;$("customerReturnLookup").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();lookupCustomerReturnIMEI();}});$("shopReturnProduct").onchange=syncReturnForms;$("shopReturnFrom").onchange=syncReturnForms;$("damageProduct").onchange=syncDamage;$("damageLocation").onchange=syncDamage;
@@ -543,7 +574,7 @@ p.purchasePrice=unitPrice;db.purchases.push(record);save();e.target.reset();rend
 };
 $("productForm").onsubmit=e=>{
 e.preventDefault();
-let type=$("pType").value,name=$("pName").value.trim(),barcode=$("pBarcode").value.trim();
+let type=$("pType").value,name=$("pName").value.trim(),barcode=$("pBarcode").value.trim();if(!barcode)barcode="SHK"+Date.now().toString().slice(-10);
 if(db.products.some(p=>barcode&&p.barcode.toLowerCase()===barcode.toLowerCase()))return alert("Barcode already exists");
 let salePrice=Number($("pSalePrice").value);
 if(!Number.isFinite(salePrice)||salePrice<0)return alert("Enter a valid sale price");
@@ -687,6 +718,7 @@ db.transfers.push(t);save();e.target.reset();render();alert("Transfer completed 
 };
 function render(){
 renderLocationControls();
+renderBarcodeOptions();
 $("adjustProduct").innerHTML=db.products.map(p=>'<option value="'+p.id+'">'+esc(pname(p))+'</option>').join("");
 $("purchaseProduct").innerHTML=db.products.map(p=>'<option value="'+p.id+'">'+esc(pname(p))+'</option>').join("");
 syncAdjustment();syncPurchase();
