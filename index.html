@@ -11,7 +11,7 @@ body{margin:0;background:#0b1220;color:#edf3fb;font:14px Arial}
 header{background:#142136;padding:18px;display:flex;justify-content:space-between;align-items:center;gap:10px}
 header h2{margin:0;color:#75a5ff}
 nav{display:flex;gap:7px;flex-wrap:wrap;padding:12px;background:#101c2d}
-button.secondary{background:#40516b}.icon-preview{vertical-align:middle}.product-icon{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;background:#243b5b;color:#8fc4ff;vertical-align:middle}.product-icon svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.sale-product-icon{margin:-5px 0 10px;min-height:38px}.invoice-paper{background:#fff;color:#111;padding:24px;border-radius:8px;max-width:760px;margin:16px auto}.invoice-paper table{min-width:0;color:#111}.invoice-paper th,.invoice-paper td{border-bottom:1px solid #ddd}.invoice-actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+button.secondary{background:#40516b}.icon-preview{vertical-align:middle}.product-icon{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;background:#243b5b;color:#8fc4ff;vertical-align:middle}.product-icon svg{display:block;width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.product-icon-custom{font-size:20px;line-height:1}.icon-preview{width:54px;min-width:54px}.category-chip{display:inline-block;background:#263e5d;color:#b9d8ff;border:1px solid #3c5c82;border-radius:999px;padding:4px 9px;font-size:12px}.category-group-row td{background:#1b2d46;padding:7px 10px}.category-toggle{width:100%;text-align:left;background:transparent;color:#dceaff;font-weight:bold;padding:9px 8px}.category-toggle:hover{background:#294363}.category-chevron{display:inline-block;width:18px;color:#8fc4ff}.category-count{float:right;color:#9fb5d1;font-weight:normal;font-size:12px}.sale-product-icon{margin:-5px 0 10px;min-height:38px}.invoice-paper{background:#fff;color:#111;padding:24px;border-radius:8px;max-width:760px;margin:16px auto}.invoice-paper table{min-width:0;color:#111}.invoice-paper th,.invoice-paper td{border-bottom:1px solid #ddd}.invoice-actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
 button{background:#315fba;color:white;border:0;border-radius:8px;padding:11px;cursor:pointer}
 nav button{background:#20334e}
 main{padding:18px;max-width:1100px;margin:auto}
@@ -90,11 +90,11 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <label>Product Type</label>
 <select id="pType" onchange="toggleType()"><option value="mobile">Mobile</option><option value="accessory">Accessory</option></select>
 <label>Product Name</label><input id="pName" required placeholder="Samsung Galaxy A54 / Charger">
-<label>Product Icon</label><select id="pIcon"><option value="phone">Mobile phone</option><option value="charger">Fast charger / adapter</option><option value="earbuds">Earbuds / headphones</option><option value="battery">Battery / power bank</option><option value="box">Accessories / other</option><option value="case">Cover / glass</option><option value="watch">Smartwatch</option><option value="laptop">Laptop / tablet</option><option value="parts">Repair parts</option><option value="gadget">Gadget</option></select>
+<label>Product Icon</label><select id="pIcon" onchange="toggleCustomIcon()"><option value="phone">Mobile phone</option><option value="charger">Fast charger / adapter</option><option value="earbuds">Earbuds / headphones</option><option value="battery">Battery / power bank</option><option value="box">Accessories / other</option><option value="case">Cover / glass</option><option value="watch">Smartwatch</option><option value="laptop">Laptop / tablet</option><option value="parts">Repair parts</option><option value="gadget">Gadget</option><option value="custom">Other — choose your own emoji</option></select><div id="pCustomIconWrap" style="display:none"><label>Choose Your Icon (Emoji)</label><input id="pCustomIcon" maxlength="8" placeholder="e.g. 🖨️ 💡 🎮 🔊"></div>
 <label>Selling Price (₹ per unit)</label><input id="pSalePrice" type="number" min="0" step="0.01" value="0" placeholder="Selling price">
 <label>Minimum Stock Alert (units)</label><input id="pMinStock" type="number" min="0" step="1" value="0" placeholder="0 = alert disabled"><label>Purchase Price (₹ per unit) — Owner entry</label><input id="pPurchasePrice" type="number" min="0" step="0.01" placeholder="Optional; not shown in stock list or sales invoice">
 <label>Brand</label><input id="pBrand" placeholder="Brand">
-<label>Model / Category</label><input id="pModel" placeholder="Model or category">
+<label>Category</label><input id="pCategory" list="productCategoryOptions" required placeholder="e.g. Charger, Earphone, Cable, Mobile"><datalist id="productCategoryOptions"><option value="Mobile"><option value="Charger"><option value="Earphone"><option value="Cable"><option value="Cover"><option value="Tempered Glass"><option value="Battery"><option value="Power Bank"><option value="Speaker"><option value="Watch"><option value="Other Accessories"></datalist><label>Model (optional)</label><input id="pModel" placeholder="Model number / variant">
 <label>Barcode / SKU</label><input id="pBarcode" placeholder="Optional">
 <label>Opening Location</label><select id="pLocation"></select>
 <div id="mobileFields"><label>IMEI (one per line, 15 digits)</label><textarea id="pImeis" rows="3"></textarea></div>
@@ -105,9 +105,9 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 </section>
 <section id="barcodes"><h2>Barcode Generate & Print</h2><div class="panel"><form id="barcodeForm"><label>Product</label><select id="barcodeProduct"></select><label>Location</label><select id="barcodeLocation"></select><label>Barcode Item</label><select id="barcodeItem"></select><label>Copies</label><input id="barcodeCopies" type="number" min="1" max="100" value="1"><label>Label Size</label><select id="barcodeSize"><option value="50x30">50 x 30 mm</option><option value="70x35">70 x 35 mm</option></select><button type="submit">Print Barcode Label</button></form></div></section><section id="productList">
 <h2>Product List & Current Stock</h2>
-<p class="muted">This is your stock view. Adding a product is kept in a separate section.</p>
-<div class="panel"><h3>Manage Products</h3><p class="muted">Yahan se product details edit karein. Delete sirf tab hoga jab product ka stock zero ho aur uska koi transaction history record na ho.</p><input id="manageProductSearch" placeholder="Search product, brand, model or barcode" oninput="renderProductManager()"><div class="tablewrap"><table><thead><tr><th>Product</th><th>Type</th><th>Total Stock</th><th>Barcode / SKU</th><th>Action</th></tr></thead><tbody id="productManageRows"></tbody></table></div></div>
-<div class="panel" id="productEditPanel" style="display:none"><h3>Edit Product</h3><form id="productEditForm"><input id="editProductId" type="hidden"><label>Product Name</label><input id="editProductName" required maxlength="100"><div class="row"><div><label>Brand</label><input id="editProductBrand"></div><div><label>Model / Category</label><input id="editProductModel"></div></div><div class="row"><div><label>Selling Price (₹)</label><input id="editProductSalePrice" type="number" min="0" step="0.01" required></div><div><label>Purchase Price (₹)</label><input id="editProductPurchasePrice" type="number" min="0" step="0.01"></div></div><div class="row"><div><label>Minimum Stock Alert</label><input id="editProductMinStock" type="number" min="0" step="1"></div><div><label>Barcode / SKU</label><input id="editProductBarcode" maxlength="80"></div></div><label>Product Icon</label><select id="editProductIcon"><option value="phone">Mobile phone</option><option value="charger">Fast charger / adapter</option><option value="earbuds">Earbuds / headphones</option><option value="battery">Battery / power bank</option><option value="box">Accessories / other</option><option value="case">Cover / glass</option><option value="watch">Smartwatch</option><option value="laptop">Laptop / tablet</option><option value="parts">Repair parts</option><option value="gadget">Gadget</option></select><button type="submit">Save Changes</button> <button type="button" class="secondary" onclick="cancelProductEdit()">Cancel</button></form></div>
+<p class="muted">Products pehle category-wise dikhte hain. Category par click karke uske andar ke products aur stock details dekhein.</p>
+<div class="panel"><h3>Manage Products</h3><p class="muted">Yahan se product details edit karein. Delete sirf tab hoga jab product ka stock zero ho aur uska koi transaction history record na ho.</p><input id="manageProductSearch" placeholder="Search product, brand, model or barcode" oninput="renderProductManager()"><div class="tablewrap"><table><thead><tr><th>Icon</th><th>Product</th><th>Category</th><th>Type</th><th>Total Stock</th><th>Barcode / SKU</th><th>Action</th></tr></thead><tbody id="productManageRows"></tbody></table></div></div>
+<div class="panel" id="productEditPanel" style="display:none"><h3>Edit Product</h3><form id="productEditForm"><input id="editProductId" type="hidden"><label>Product Name</label><input id="editProductName" required maxlength="100"><div class="row"><div><label>Brand</label><input id="editProductBrand"></div><div><label>Model / Category</label><input id="editProductModel"></div></div><div class="row"><div><label>Selling Price (₹)</label><input id="editProductSalePrice" type="number" min="0" step="0.01" required></div><div><label>Purchase Price (₹)</label><input id="editProductPurchasePrice" type="number" min="0" step="0.01"></div></div><div class="row"><div><label>Minimum Stock Alert</label><input id="editProductMinStock" type="number" min="0" step="1"></div><div><label>Barcode / SKU</label><input id="editProductBarcode" maxlength="80"></div></div><label>Category</label><input id="editProductCategory" list="productCategoryOptions" required><label>Product Icon</label><select id="editProductIcon" onchange="toggleEditCustomIcon()"><option value="phone">Mobile phone</option><option value="charger">Fast charger / adapter</option><option value="earbuds">Earbuds / headphones</option><option value="battery">Battery / power bank</option><option value="box">Accessories / other</option><option value="case">Cover / glass</option><option value="watch">Smartwatch</option><option value="laptop">Laptop / tablet</option><option value="parts">Repair parts</option><option value="gadget">Gadget</option><option value="custom">Other — choose your own emoji</option></select><div id="editCustomIconWrap" style="display:none"><label>Choose Your Icon (Emoji)</label><input id="editCustomIcon" maxlength="8" placeholder="e.g. 🖨️ 💡 🎮 🔊"></div><button type="submit">Save Changes</button> <button type="button" class="secondary" onclick="cancelProductEdit()">Cancel</button></form></div>
 <div class="panel">
 <input id="productSearch" placeholder="Search product, barcode or IMEI" oninput="renderProducts()">
 <div class="tablewrap"><table><thead><tr><th>Icon</th><th>Product</th><th>Type</th><th>IMEI / Barcode</th><th>Location</th><th>Stock</th><th>Sale Price</th></tr></thead><tbody id="productRows"></tbody></table></div>
@@ -271,11 +271,13 @@ let saleCart=[];
 const $=id=>document.getElementById(id);
 const save=()=>localStorage.setItem(KEY,JSON.stringify(db));
 let barcodeSeed=Date.now();
-db.products.forEach(p=>{if(p.type==="accessory"&&!p.barcode){let candidate;do{candidate="SHK"+String(barcodeSeed++).slice(-10);}while(db.products.some(x=>x!==p&&x.barcode===candidate));p.barcode=candidate;}});
+db.products.forEach(p=>{if(p.type==="accessory"&&!p.category&&p.model){p.category=p.model;p.model="";}if(p.type==="mobile"&&!p.category)p.category="Mobile";if(p.type==="accessory"&&!p.barcode){let candidate;do{candidate="SHK"+String(barcodeSeed++).slice(-10);}while(db.products.some(x=>x!==p&&x.barcode===candidate));p.barcode=candidate;}});
 save();
 const esc=s=>String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const product=id=>db.products.find(p=>p.id===id);
 const pname=p=>[p.brand,p.name,p.model].filter(Boolean).join(" ");
+const productCategory=p=>(p&&p.category?String(p.category):"Uncategorized");
+let expandedProductCategories=new Set();
 function iconMarkup(value){
 const aliases={"📱":"phone","🔌":"charger","🎧":"earbuds","🔋":"battery","📦":"box","🛡️":"case","⌚":"watch","💻":"laptop","🔧":"parts","🎮":"gadget"};
 const key=aliases[value]||value||"box";
@@ -291,7 +293,7 @@ laptop:'<rect x="5" y="4" width="14" height="11" rx="1.5"/><path d="M3 19h18l-2-
 parts:'<path d="M9 3h6v4H9zM5 9h4v6H5zM15 9h4v6h-4zM9 17h6v4H9z"/><path d="M12 7v2m-3 3h6m-3 3v2"/>',
 gadget:'<rect x="4" y="5" width="16" height="14" rx="3"/><path d="M8 12h4m-2-2v4m5-2h.01m2 0h.01"/>'
 };
-return '<span class="product-icon" aria-hidden="true"><svg viewBox="0 0 24 24">'+(paths[key]||paths.box)+'</svg></span>';
+return paths[key]?'<span class="product-icon" aria-hidden="true"><svg viewBox="0 0 24 24">'+paths[key]+'</svg></span>':'<span class="product-icon product-icon-custom" aria-hidden="true">'+esc(value||"📦")+'</span>';
 }
 const now=()=>new Date().toISOString();
 const date=d=>new Date(d).toLocaleString();
@@ -335,7 +337,9 @@ if(activeLocation===name){activeLocation=locations.find(x=>db.locationTypes[x]==
 save();render();
 }
 
-function toggleType(){let m=$("pType").value==="mobile";$("mobileFields").style.display=m?"block":"none";$("accessoryFields").style.display=m?"none":"block"}
+function toggleType(){let m=$("pType").value==="mobile";$("mobileFields").style.display=m?"block":"none";$("accessoryFields").style.display=m?"none":"block";const c=$("pCategory");if(m&&(!c.value||c.value==="Accessories"))c.value="Mobile";else if(!m&&c.value==="Mobile")c.value="";}
+function toggleCustomIcon(){$("pCustomIconWrap").style.display=$("pIcon").value==="custom"?"block":"none";}
+function toggleEditCustomIcon(){$("editCustomIconWrap").style.display=$("editProductIcon").value==="custom"?"block":"none";}
 function addOptions(){let opts=db.products.map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");$("stockProduct").innerHTML=opts;$("transferProduct").innerHTML=opts;syncStock();syncTransfer()}
 function syncStock(){let p=product($("stockProduct").value),m=p&&p.type==="mobile";$("stockMobile").style.display=m?"block":"none";$("stockAccessory").style.display=m?"none":"block"}
 function syncTransfer(){let p=product($("transferProduct").value),m=p&&p.type==="mobile";$("transferMobile").style.display=m?"block":"none";$("transferAccessory").style.display=m?"none":"block";let from=$("fromLocation").value;$("transferImei").innerHTML=db.devices.filter(d=>d.productId===p?.id&&d.location===from).map(d=>`<option value="${d.id}">${d.imei}</option>`).join("")}
@@ -530,16 +534,16 @@ w.document.write("<html><head><style>"+css+"</style></head><body>"+labels+"<scri
 function renderProductManager(){
 const body=$("productManageRows");if(!body)return;
 const q=($("manageProductSearch").value||"").toLowerCase();
-body.innerHTML=db.products.filter(p=>(pname(p)+" "+(p.barcode||"")).toLowerCase().includes(q)).map(p=>{
+body.innerHTML=db.products.filter(p=>(pname(p)+" "+productCategory(p)+" "+(p.barcode||"")).toLowerCase().includes(q)).map(p=>{
 const qty=p.type==="mobile"?db.devices.filter(d=>d.productId===p.id).length:db.accessories.filter(x=>x.productId===p.id).reduce((s,x)=>s+Number(x.qty||0),0);
-return '<tr><td>'+esc(pname(p))+'</td><td>'+(p.type==="mobile"?"Mobile":"Accessory")+'</td><td>'+qty+'</td><td>'+esc(p.barcode||"-")+'</td><td><button type="button" onclick="editProduct(\''+p.id+'\')">Edit</button> <button type="button" class="secondary" onclick="deleteProduct(\''+p.id+'\')">Delete</button></td></tr>';
-}).join("")||"<tr><td colspan='5'>No products found</td></tr>";
+return '<tr><td class="icon-preview">'+iconMarkup(p.icon)+'</td><td>'+esc(pname(p))+'</td><td><span class="category-chip">'+esc(productCategory(p))+'</span></td><td>'+(p.type==="mobile"?"Mobile":"Accessory")+'</td><td>'+qty+'</td><td>'+esc(p.barcode||"-")+'</td><td><button type="button" onclick="editProduct(\''+p.id+'\')">Edit</button> <button type="button" class="secondary" onclick="deleteProduct(\''+p.id+'\')">Delete</button></td></tr>';
+}).join("")||"<tr><td colspan='7'>No products found</td></tr>";
 }
 function editProduct(id){
 const p=product(id);if(!p)return alert("Product not found");
-$("editProductId").value=p.id;$("editProductName").value=p.name||"";$("editProductBrand").value=p.brand||"";$("editProductModel").value=p.model||"";
+$("editProductId").value=p.id;$("editProductName").value=p.name||"";$("editProductBrand").value=p.brand||"";$("editProductModel").value=p.model||"";$("editProductCategory").value=productCategory(p);
 $("editProductSalePrice").value=Number(p.salePrice||0);$("editProductPurchasePrice").value=p.purchasePrice==null?"":p.purchasePrice;
-$("editProductMinStock").value=Number(p.minStock||0);$("editProductBarcode").value=p.barcode||"";$("editProductIcon").value=p.icon||"box";
+$("editProductMinStock").value=Number(p.minStock||0);$("editProductBarcode").value=p.barcode||"";const knownIcons=["phone","charger","earbuds","battery","box","case","watch","laptop","parts","gadget"];if(knownIcons.includes(p.icon||"box")){$("editProductIcon").value=p.icon||"box";$("editCustomIcon").value="";}else{$("editProductIcon").value="custom";$("editCustomIcon").value=p.icon||"";}toggleEditCustomIcon();
 $("productEditPanel").style.display="block";$("productEditPanel").scrollIntoView({behavior:"smooth",block:"start"});
 }
 function cancelProductEdit(){$("productEditForm").reset();$("productEditPanel").style.display="none";}
@@ -561,17 +565,34 @@ if(!Number.isFinite(salePrice)||salePrice<0)return alert("Selling price sahi ent
 if(purchasePrice!==null&&(!Number.isFinite(purchasePrice)||purchasePrice<0))return alert("Purchase price sahi enter karein");
 if(!Number.isInteger(minStock)||minStock<0)return alert("Minimum stock zero ya positive whole number hona chahiye");
 if(barcode&&db.products.some(x=>x.id!==p.id&&x.barcode&&x.barcode.toLowerCase()===barcode.toLowerCase()))return alert("Ye barcode kisi doosre product ko diya hua hai");
-p.name=name;p.brand=$("editProductBrand").value.trim();p.model=$("editProductModel").value.trim();p.salePrice=salePrice;p.purchasePrice=purchasePrice;p.minStock=minStock;p.barcode=barcode;p.icon=$("editProductIcon").value;
+const category=$("editProductCategory").value.trim();if(!category)return alert("Category zaroor likhein");const selectedIcon=$("editProductIcon").value,customIcon=$("editCustomIcon").value.trim();if(selectedIcon==="custom"&&!customIcon)return alert("Apna emoji icon enter karein");p.name=name;p.brand=$("editProductBrand").value.trim();p.model=$("editProductModel").value.trim();p.category=category;p.salePrice=salePrice;p.purchasePrice=purchasePrice;p.minStock=minStock;p.barcode=barcode;p.icon=selectedIcon==="custom"?customIcon:selectedIcon;
 save();cancelProductEdit();render();alert("Product details update ho gayi hain.");
 };
+function toggleProductCategory(category){
+if(expandedProductCategories.has(category))expandedProductCategories.delete(category);else expandedProductCategories.add(category);
+renderProducts();
+}
 function renderProducts(){
 if(!$("productRows"))return;
-let loc=$("locationFilter").value,q=($("productSearch").value||"").toLowerCase(),rows=[];
+const loc=$("locationFilter").value,q=($("productSearch").value||"").toLowerCase(),groups=new Map();
 db.products.forEach(p=>{
-if(p.type==="mobile")db.devices.filter(d=>d.productId===p.id&&(loc==="All Locations"||d.location===loc)&&(!q||(pname(p)+" "+d.imei+" "+(p.barcode||"")).toLowerCase().includes(q))).forEach(d=>rows.push(`<tr><td class="icon-preview">${iconMarkup(p.icon)}</td><td>${esc(pname(p))}</td><td>Mobile</td><td>${esc(d.imei)}</td><td>${esc(d.location)}</td><td>1 device</td><td>₹${Number(p.salePrice||0).toFixed(2)}</td></tr>`));
-else db.accessories.filter(a=>a.productId===p.id&&(loc==="All Locations"||a.location===loc)&&(!q||(pname(p)+" "+(p.barcode||"")).toLowerCase().includes(q))).forEach(a=>rows.push(`<tr><td class="icon-preview">${iconMarkup(p.icon)}</td><td>${esc(pname(p))}</td><td>Accessory</td><td>${esc(p.barcode||"-")}</td><td>${esc(a.location)}</td><td>${a.qty} units</td><td>₹${Number(p.salePrice||0).toFixed(2)}</td></tr>`));
+const category=productCategory(p);
+const matches=(pname(p)+" "+category+" "+(p.barcode||"")).toLowerCase().includes(q);
+let itemRows=[];
+if(p.type==="mobile"){
+db.devices.filter(d=>d.productId===p.id&&(loc==="All Locations"||d.location===loc)&&(!q||matches||d.imei.toLowerCase().includes(q))).forEach(d=>itemRows.push('<tr><td class="icon-preview">'+iconMarkup(p.icon)+'</td><td>'+esc(pname(p))+'</td><td>Mobile</td><td>'+esc(d.imei)+'</td><td>'+esc(d.location)+'</td><td>1 device</td><td>₹'+Number(p.salePrice||0).toFixed(2)+'</td></tr>'));
+}else{
+db.accessories.filter(a=>a.productId===p.id&&(loc==="All Locations"||a.location===loc)&&(!q||matches)).forEach(a=>{if(Number(a.qty||0)>0)itemRows.push('<tr><td class="icon-preview">'+iconMarkup(p.icon)+'</td><td>'+esc(pname(p))+'</td><td>Accessory</td><td>'+esc(p.barcode||"-")+'</td><td>'+esc(a.location)+'</td><td>'+a.qty+' units</td><td>₹'+Number(p.salePrice||0).toFixed(2)+'</td></tr>');});
+}
+if(itemRows.length){if(!groups.has(category))groups.set(category,[]);groups.get(category).push(...itemRows);}
 });
-$("productRows").innerHTML=rows.join("")||"<tr><td colspan='7'>No stock found</td></tr>";
+let rows=[];
+[...groups.keys()].sort((a,b)=>a.localeCompare(b)).forEach(category=>{
+const items=groups.get(category),expanded=expandedProductCategories.has(category)||!!q,encoded=encodeURIComponent(category);
+rows.push('<tr class="category-group-row"><td colspan="7"><button type="button" class="category-toggle" aria-expanded="'+expanded+'" onclick="toggleProductCategory(decodeURIComponent(\''+encoded+'\'))"><span class="category-chevron">'+(expanded?'▾':'▸')+'</span> '+esc(category)+' <span class="category-count">'+items.length+' stock entries</span></button></td></tr>');
+if(expanded)rows.push(...items);
+});
+$("productRows").innerHTML=rows.join("")||"<tr><td colspan='7'>No stock found in this location</td></tr>";
 }
 function renderOutHistory(){
 if(!$("outHistoryRows"))return;
@@ -616,14 +637,14 @@ p.purchasePrice=unitPrice;db.purchases.push(record);save();e.target.reset();rend
 };
 $("productForm").onsubmit=e=>{
 e.preventDefault();
-let type=$("pType").value,name=$("pName").value.trim(),barcode=$("pBarcode").value.trim();if(!barcode)barcode="SHK"+Date.now().toString().slice(-10);
+let type=$("pType").value,name=$("pName").value.trim(),category=$("pCategory").value.trim(),barcode=$("pBarcode").value.trim();if(!category)return alert("Category zaroor select ya enter karein");if(!barcode)barcode="SHK"+Date.now().toString().slice(-10);
 if(db.products.some(p=>barcode&&p.barcode.toLowerCase()===barcode.toLowerCase()))return alert("Barcode already exists");
 let salePrice=Number($("pSalePrice").value);
 if(!Number.isFinite(salePrice)||salePrice<0)return alert("Enter a valid sale price");
 let purchaseRaw=$("pPurchasePrice").value.trim(),purchasePrice=purchaseRaw===""?null:Number(purchaseRaw);
 if(purchasePrice!==null&&(!Number.isFinite(purchasePrice)||purchasePrice<0))return alert("Enter a valid purchase price");
 let minStock=Number($("pMinStock").value||0);if(!Number.isInteger(minStock)||minStock<0)return alert("Minimum stock must be zero or a positive whole number");
-let p={id:Date.now().toString(),type,name,brand:$("pBrand").value.trim(),model:$("pModel").value.trim(),barcode,icon:$("pIcon").value,salePrice,purchasePrice,minStock};
+let selectedIcon=$("pIcon").value,customIcon=$("pCustomIcon").value.trim();if(selectedIcon==="custom"&&!customIcon)return alert("Apna emoji icon enter karein");let p={id:Date.now().toString(),type,name,brand:$("pBrand").value.trim(),model:$("pModel").value.trim(),category,barcode,icon:selectedIcon==="custom"?customIcon:selectedIcon,salePrice,purchasePrice,minStock};
 let imeis=$("pImeis").value.split(/[\n,]+/).map(x=>x.trim()).filter(Boolean);
 if(type==="mobile"){
 if(imeis.some(x=>!/^\d{15}$/.test(x)))return alert("Every IMEI must be 15 digits");
