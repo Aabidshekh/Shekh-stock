@@ -303,10 +303,14 @@ function setActiveLocation(location){if(!locations.includes(location))return;act
 function downloadBackup(){const payload={app:"Shekh Stock",version:1,createdAt:now(),data:db};const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="Shekh-Stock-Backup-"+new Date().toISOString().slice(0,10)+".json";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);$("backupInfo").textContent="Backup downloaded: "+new Date().toLocaleString();}
 async function restoreBackup(){const file=$("restoreFile").files[0];if(!file)return alert("Please select a backup JSON file");try{const parsed=JSON.parse(await file.text()),data=parsed.data||parsed;if(!data||!Array.isArray(data.products)||!Array.isArray(data.devices)||!Array.isArray(data.accessories))return alert("This file is not a valid Shekh Stock backup");if(!confirm("WARNING: Current browser data will be replaced. Have you downloaded a backup of current data? Continue?"))return;localStorage.setItem(KEY,JSON.stringify(data));alert("Backup restored. The app will reload.");window.location.reload();}catch(e){alert("Backup file could not be read. Please select a valid JSON backup.");}}
 function productLocationQty(p,loc){return p.type==="mobile"?db.devices.filter(d=>d.productId===p.id&&d.location===loc).length:(db.accessories.find(a=>a.productId===p.id&&a.location===loc)?.qty||0);}
+function isGodownView(){return db.locationTypes[activeLocation]==="godown";}
+function locationVisible(loc){return isGodownView()||loc===activeLocation;}
+function scopedLocations(){return isGodownView()?locations:[activeLocation];}
+function productLocationBreakdown(p){return scopedLocations().map(loc=>({loc,qty:productLocationQty(p,loc)})).filter(x=>x.qty>0);}
 function renderLowStock(){const el=$("lowStockRows");if(!el)return;let rows=[];db.products.filter(p=>Number(p.minStock||0)>0).forEach(p=>locations.forEach(loc=>{let qty=productLocationQty(p,loc),min=Number(p.minStock||0);if(qty<=min)rows.push("<tr><td>"+esc(pname(p))+"</td><td>"+esc(loc)+"</td><td>"+qty+"</td><td>"+min+"</td></tr>");}));el.innerHTML=rows.length?'<div class="tablewrap"><table><thead><tr><th>Product</th><th>Location</th><th>Available</th><th>Minimum</th></tr></thead><tbody>'+rows.join("")+'</tbody></table></div>':"<p class='muted'>No low-stock alerts. Set a minimum quantity on products to enable alerts.</p>";}
 function syncAdjustment(){let p=product($("adjustProduct").value),mobile=p&&p.type==="mobile";$("adjustMobileFields").style.display=mobile?"block":"none";$("adjustAccessoryFields").style.display=mobile?"none":"block";}
-function renderAdjustments(){$("adjustRows").innerHTML=db.adjustments.slice().reverse().map(a=>'<tr><td>'+date(a.at)+'</td><td>'+esc(pname(product(a.productId)||{}))+'</td><td>'+esc(a.location)+'</td><td>'+esc(a.before)+'</td><td>'+esc(a.after)+'</td><td>'+esc(a.reason)+'</td><td>'+esc(a.staff)+'</td></tr>').join("")||'<tr><td colspan="7">No adjustments yet</td></tr>';}
-function renderPurchases(){const body=$("purchaseRows");if(!body)return;let q=($("purchaseSearch").value||"").toLowerCase();body.innerHTML=db.purchases.slice().reverse().filter(x=>(x.supplier+" "+pname(product(x.productId)||{})+" "+x.reference).toLowerCase().includes(q)).map(x=>'<tr><td>'+date(x.at)+'</td><td>'+esc(x.supplier)+'</td><td>'+esc(pname(product(x.productId)||{}))+'</td><td>'+esc(x.imei||x.qty+" units")+'</td><td>'+esc(x.location)+'</td><td>₹'+Number(x.unitPrice||0).toFixed(2)+'</td><td>'+esc(x.reference||"-")+'</td></tr>').join("")||'<tr><td colspan="7">No purchases yet</td></tr>';}
+function renderAdjustments(){$("adjustRows").innerHTML=db.adjustments.slice().reverse().filter(a=>locationVisible(a.location)).map(a=>'<tr><td>'+date(a.at)+'</td><td>'+esc(pname(product(a.productId)||{}))+'</td><td>'+esc(a.location)+'</td><td>'+esc(a.before)+'</td><td>'+esc(a.after)+'</td><td>'+esc(a.reason)+'</td><td>'+esc(a.staff)+'</td></tr>').join("")||'<tr><td colspan="7">No adjustments yet</td></tr>';}
+function renderPurchases(){const body=$("purchaseRows");if(!body)return;let q=($("purchaseSearch").value||"").toLowerCase();body.innerHTML=db.purchases.slice().reverse().filter(x=>locationVisible(x.location)&&(x.supplier+" "+pname(product(x.productId)||{})+" "+x.reference).toLowerCase().includes(q)).map(x=>'<tr><td>'+date(x.at)+'</td><td>'+esc(x.supplier)+'</td><td>'+esc(pname(product(x.productId)||{}))+'</td><td>'+esc(x.imei||x.qty+" units")+'</td><td>'+esc(x.location)+'</td><td>₹'+Number(x.unitPrice||0).toFixed(2)+'</td><td>'+esc(x.reference||"-")+'</td></tr>').join("")||'<tr><td colspan="7">No purchases yet</td></tr>';}
 function renderReports(){let from=$("reportFrom").value,to=$("reportTo").value;let inRange=x=>{let d=String(x.at||"").slice(0,10);return(!from||d>=from)&&(!to||d<=to);};let sales=db.sales.filter(inRange),returns=db.returns.filter(inRange),damages=db.damages.filter(inRange);$("reportSales").textContent="₹"+sales.reduce((s,x)=>s+Number(x.total||0),0).toFixed(2);$("reportInvoices").textContent=sales.length;$("reportReturns").textContent=returns.length;$("reportDamages").textContent=damages.length;$("reportStockRows").innerHTML=locations.map(loc=>'<tr><td>'+esc(loc)+'</td><td>'+db.devices.filter(d=>d.location===loc).length+'</td><td>'+db.accessories.filter(a=>a.location===loc).reduce((s,a)=>s+a.qty,0)+'</td></tr>').join("");$("reportLocationSales").innerHTML=locations.map(loc=>{let arr=sales.filter(s=>s.location===loc);return '<tr><td>'+esc(loc)+'</td><td>'+arr.length+'</td><td>₹'+arr.reduce((s,x)=>s+Number(x.total||0),0).toFixed(2)+'</td></tr>';}).join("");}
 
 function locationOptions(selected,shopsOnly=false){
@@ -457,37 +461,45 @@ db.sales.push(sale);save();saleCart=[];render();showInvoice(sale);alert("Sale sa
 function renderReturns(){
 if(!$("returnRows"))return;
 let q=($("returnSearch").value||"").toLowerCase();
-$("returnRows").innerHTML=db.returns.slice().reverse().filter(r=>(pname(product(r.productId)||{})+" "+(r.imei||"")+" "+r.location+" "+(r.customer||"")+" "+(r.note||"")+" "+r.type).toLowerCase().includes(q)).map(r=>'<tr><td>'+date(r.at)+'</td><td>'+esc(r.type==="customer"?"Customer Return":"Shop Return")+'</td><td>'+esc(pname(product(r.productId)||{}))+'</td><td>'+esc(r.imei||r.qty+" units")+'</td><td>'+esc(r.location)+'</td><td>'+esc(r.condition||r.note||"")+'</td></tr>').join("")||'<tr><td colspan="6">No return records yet</td></tr>';
+$("returnRows").innerHTML=db.returns.slice().reverse().filter(r=>locationVisible(r.location)&&(pname(product(r.productId)||{})+" "+(r.imei||"")+" "+r.location+" "+(r.customer||"")+" "+(r.note||"")+" "+r.type).toLowerCase().includes(q)).map(r=>'<tr><td>'+date(r.at)+'</td><td>'+esc(r.type==="customer"?"Customer Return":"Shop Return")+'</td><td>'+esc(pname(product(r.productId)||{}))+'</td><td>'+esc(r.imei||r.qty+" units")+'</td><td>'+esc(r.location)+'</td><td>'+esc(r.condition||r.note||"")+'</td></tr>').join("")||'<tr><td colspan="6">No return records yet</td></tr>';
 }
 function renderDamages(){
 if(!$("damageRows"))return;
 let q=($("damageSearch").value||"").toLowerCase();
-$("damageRows").innerHTML=db.damages.slice().reverse().filter(d=>(pname(product(d.productId)||{})+" "+d.imeis.join(" ")+" "+d.company+" "+d.status).toLowerCase().includes(q)).map(d=>{
-let pending=d.qty-d.replacementReceived-d.lossQty;
-let ids=d.imeis.length?d.imeis.join(", "):d.qty+" units";
+$("damageRows").innerHTML=db.damages.slice().reverse().filter(d=>locationVisible(d.location)&&(pname(product(d.productId)||{})+" "+d.imeis.join(" ")+" "+d.company+" "+d.status).toLowerCase().includes(q)).map(d=>{
+let pending=d.qty-d.replacementReceived-d.lossQty,ids=d.imeis.length?d.imeis.join(", "):d.qty+" units";
+let destinations=locations.filter(x=>db.locationTypes[x]==="shop"&&x!==d.location);
+let move=destinations.length?'<div style="min-width:150px"><select id="damageMove_'+d.id+'">'+destinations.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join("")+'</select><button type="button" class="secondary" onclick="moveDamageRecord(\''+d.id+'\')">Send to Shop</button></div>':"";
 let action=pending>0?'<button type="button" onclick="receiveReplacement(\''+d.id+'\')">Receive Replacement</button> <button type="button" class="secondary" onclick="markTotalLoss(\''+d.id+'\')">Mark Total Loss</button>':"Closed";
-return '<tr><td>'+date(d.at)+'</td><td>'+esc(pname(product(d.productId)||{}))+'</td><td>'+esc(ids)+'</td><td>'+esc(d.company||"-")+'</td><td>'+d.replacementReceived+'</td><td>'+pending+'</td><td>'+d.lossQty+'</td><td>'+esc(d.status)+'<br>'+action+'</td></tr>';
-}).join("")||'<tr><td colspan="8">No damage records yet</td></tr>';
+return '<tr><td>'+date(d.at)+'</td><td>'+esc(pname(product(d.productId)||{}))+'</td><td>'+esc(ids)+'</td><td>'+esc(d.company||"-")+'</td><td>'+d.replacementReceived+'</td><td>'+pending+'</td><td>'+d.lossQty+'</td><td>'+esc(d.status)+'<br>Current location: '+esc(d.location)+'<br>'+move+action+'</td></tr>';
+}).join("")||'<tr><td colspan="8">No damage records for this location</td></tr>';
+}
+function moveDamageRecord(id){
+const d=db.damages.find(x=>x.id===id);if(!d)return;
+const target=$("damageMove_"+id)?.value;if(!target||target===d.location)return alert("Select a different destination shop");
+const from=d.location;d.location=target;if(!Array.isArray(d.movements))d.movements=[];
+d.movements.push({from,to:target,at:now()});save();render();
+alert("Damage / replacement record "+from+" se "+target+" transfer ho gaya. Ab replacement isi selected shop ke liye receive hoga.");
 }
 function receiveReplacement(id){
 let d=db.damages.find(x=>x.id===id);if(!d)return;
 let pending=d.qty-d.replacementReceived-d.lossQty;if(pending<1)return alert("No pending quantity");
+let shops=locations.filter(x=>db.locationTypes[x]==="shop"),choice=prompt("Replacement kis shop par receive karna hai?\n"+shops.map((x,i)=>(i+1)+". "+x).join("\n")+"\nBlank chhodein to current damage location: "+d.location);
+if(choice===null)return;let destination=d.location;
+if(choice.trim()){let n=Number(choice);if(!Number.isInteger(n)||n<1||n>shops.length)return alert("Valid shop number select karein");destination=shops[n-1];}
 let raw=prompt("How many replacement items received? Pending: "+pending);if(raw===null)return;
 let qty=Number(raw);if(!Number.isInteger(qty)||qty<1||qty>pending)return alert("Enter a valid quantity up to "+pending);
 let p=product(d.productId);
 if(p.type==="mobile"){
 let rawImeis=prompt("Enter "+qty+" NEW replacement IMEI(s), one per line (15 digits):");if(rawImeis===null)return;
 let arr=rawImeis.split(/[\n,]+/).map(x=>x.trim()).filter(Boolean);
-if(arr.length!==qty||arr.some(x=>!/^\d{15}$/.test(x))||new Set(arr).size!==arr.length||arr.some(x=>db.devices.some(v=>v.imei===x)))return alert("Enter exactly "+qty+" unique, unused 15-digit IMEI(s)");
-arr.forEach(imei=>db.devices.push({id:crypto.randomUUID(),productId:p.id,imei,location:d.location}));
+if(arr.length!==qty||arr.some(x=>!/^[0-9]{15}$/.test(x))||new Set(arr).size!==arr.length||arr.some(x=>db.devices.some(v=>v.imei===x)))return alert("Enter exactly "+qty+" unique, unused 15-digit IMEI(s)");
+arr.forEach(imei=>db.devices.push({id:crypto.randomUUID(),productId:p.id,imei,location:destination}));
 d.replacementImeis.push(...arr);
-}else{
-let stock=db.accessories.find(a=>a.productId===p.id&&a.location===d.location);
-if(stock)stock.qty+=qty;else db.accessories.push({productId:p.id,location:d.location,qty});
-}
-d.replacementReceived+=qty;
+}else{let stock=db.accessories.find(a=>a.productId===p.id&&a.location===destination);if(stock)stock.qty+=qty;else db.accessories.push({productId:p.id,location:destination,qty});}
+d.replacementReceived+=qty;d.replacementLocations=d.replacementLocations||[];d.replacementLocations.push({location:destination,qty,at:now()});
 let left=d.qty-d.replacementReceived-d.lossQty;d.status=left===0?(d.lossQty>0?"Closed - Partial Replacement / Loss":"Replacement Received"):"Partially Received";
-save();render();alert(qty+" replacement item(s) added to "+d.location+" stock.");
+save();render();alert(qty+" replacement item(s) added to "+destination+" stock.");
 }
 function markTotalLoss(id){
 let d=db.damages.find(x=>x.id===id);if(!d)return;
@@ -499,7 +511,7 @@ save();render();alert("Remaining quantity marked as Total Loss.");
 function renderSalesHistory(){
 if(!$("salesRows"))return;
 let q=($("salesSearch").value||"").toLowerCase();
-$("salesRows").innerHTML=db.sales.slice().reverse().filter(s=>(s.invoiceNo+" "+s.customer+" "+s.phone+" "+s.staff).toLowerCase().includes(q)).map(s=>`<tr><td>${esc(s.invoiceNo)}</td><td>${date(s.at)}</td><td>${esc(s.customer||"Walk-in")}</td><td>${esc(s.location)}</td><td>₹${s.total.toFixed(2)}</td><td>${esc(s.payment)}</td><td><button type="button" onclick="showInvoice(db.sales.find(x=>x.id==='${s.id}'))">View / Print</button></td></tr>`).join("")||"<tr><td colspan='7'>No sales yet</td></tr>";
+$("salesRows").innerHTML=db.sales.slice().reverse().filter(s=>locationVisible(s.location)&&(s.invoiceNo+" "+s.customer+" "+s.phone+" "+s.staff).toLowerCase().includes(q)).map(s=>`<tr><td>${esc(s.invoiceNo)}</td><td>${date(s.at)}</td><td>${esc(s.customer||"Walk-in")}</td><td>${esc(s.location)}</td><td>₹${s.total.toFixed(2)}</td><td>${esc(s.payment)}</td><td><button type="button" onclick="showInvoice(db.sales.find(x=>x.id==='${s.id}'))">View / Print</button></td></tr>`).join("")||"<tr><td colspan='7'>No sales yet</td></tr>";
 }
 
 function code39Svg(value){
@@ -535,8 +547,8 @@ function renderProductManager(){
 const body=$("productManageRows");if(!body)return;
 const q=($("manageProductSearch").value||"").toLowerCase();
 body.innerHTML=db.products.filter(p=>(pname(p)+" "+productCategory(p)+" "+(p.barcode||"")).toLowerCase().includes(q)).map(p=>{
-const qty=p.type==="mobile"?db.devices.filter(d=>d.productId===p.id).length:db.accessories.filter(x=>x.productId===p.id).reduce((s,x)=>s+Number(x.qty||0),0);
-return '<tr><td class="icon-preview">'+iconMarkup(p.icon)+'</td><td>'+esc(pname(p))+'</td><td><span class="category-chip">'+esc(productCategory(p))+'</span></td><td>'+(p.type==="mobile"?"Mobile":"Accessory")+'</td><td>'+qty+'</td><td>'+esc(p.barcode||"-")+'</td><td><button type="button" onclick="editProduct(\''+p.id+'\')">Edit</button> <button type="button" class="secondary" onclick="deleteProduct(\''+p.id+'\')">Delete</button></td></tr>';
+const parts=productLocationBreakdown(p),stockText=isGodownView()?parts.map(x=>esc(x.loc)+": "+x.qty).join("<br>")||"0":String(productLocationQty(p,activeLocation));
+return '<tr><td class="icon-preview">'+iconMarkup(p.icon)+'</td><td>'+esc(pname(p))+'</td><td><span class="category-chip">'+esc(productCategory(p))+'</span></td><td>'+(p.type==="mobile"?"Mobile":"Accessory")+'</td><td>'+stockText+'</td><td>'+esc(p.barcode||"-")+'</td><td><button type="button" onclick="editProduct(\''+p.id+'\')">Edit</button> <button type="button" class="secondary" onclick="deleteProduct(\''+p.id+'\')">Delete</button></td></tr>';
 }).join("")||"<tr><td colspan='7'>No products found</td></tr>";
 }
 function editProduct(id){
@@ -574,16 +586,16 @@ renderProducts();
 }
 function renderProducts(){
 if(!$("productRows"))return;
-const loc=$("locationFilter").value,q=($("productSearch").value||"").toLowerCase(),selectedCategory=$("productCategoryFilter")?.value||"All Categories",groups=new Map();
+const loc=$("locationFilter").value,visibleLocs=isGodownView()?locations:[activeLocation],q=($("productSearch").value||"").toLowerCase(),selectedCategory=$("productCategoryFilter")?.value||"All Categories",groups=new Map();
 db.products.forEach(p=>{
 const category=productCategory(p);
 if(selectedCategory!=="All Categories"&&category!==selectedCategory)return;
 const matches=(pname(p)+" "+category+" "+(p.barcode||"")).toLowerCase().includes(q);
 let itemRows=[];
 if(p.type==="mobile"){
-db.devices.filter(d=>d.productId===p.id&&(loc==="All Locations"||d.location===loc)&&(!q||matches||d.imei.toLowerCase().includes(q))).forEach(d=>itemRows.push('<tr><td class="icon-preview">'+iconMarkup(p.icon)+'</td><td>'+esc(pname(p))+'</td><td>Mobile</td><td>'+esc(d.imei)+'</td><td>'+esc(d.location)+'</td><td>1 device</td><td>₹'+Number(p.salePrice||0).toFixed(2)+'</td></tr>'));
+db.devices.filter(d=>d.productId===p.id&&visibleLocs.includes(d.location)&&(!q||matches||d.imei.toLowerCase().includes(q))).forEach(d=>itemRows.push('<tr><td class="icon-preview">'+iconMarkup(p.icon)+'</td><td>'+esc(pname(p))+'</td><td>Mobile</td><td>'+esc(d.imei)+'</td><td>'+esc(d.location)+'</td><td>1 device</td><td>₹'+Number(p.salePrice||0).toFixed(2)+'</td></tr>'));
 }else{
-db.accessories.filter(a=>a.productId===p.id&&(loc==="All Locations"||a.location===loc)&&(!q||matches)).forEach(a=>{if(Number(a.qty||0)>0)itemRows.push('<tr><td class="icon-preview">'+iconMarkup(p.icon)+'</td><td>'+esc(pname(p))+'</td><td>Accessory</td><td>'+esc(p.barcode||"-")+'</td><td>'+esc(a.location)+'</td><td>'+a.qty+' units</td><td>₹'+Number(p.salePrice||0).toFixed(2)+'</td></tr>');});
+db.accessories.filter(a=>a.productId===p.id&&visibleLocs.includes(a.location)&&(!q||matches)).forEach(a=>{if(Number(a.qty||0)>0)itemRows.push('<tr><td class="icon-preview">'+iconMarkup(p.icon)+'</td><td>'+esc(pname(p))+'</td><td>Accessory</td><td>'+esc(p.barcode||"-")+'</td><td>'+esc(a.location)+'</td><td>'+a.qty+' units</td><td>₹'+Number(p.salePrice||0).toFixed(2)+'</td></tr>');});
 }
 if(itemRows.length){if(!groups.has(category))groups.set(category,[]);groups.get(category).push(...itemRows);}
 });
@@ -598,7 +610,7 @@ $("productRows").innerHTML=rows.join("")||"<tr><td colspan='7'>No stock found in
 function renderOutHistory(){
 if(!$("outHistoryRows"))return;
 let q=($("outHistorySearch").value||"").toLowerCase();
-$("outHistoryRows").innerHTML=db.stockOuts.slice().reverse().filter(t=>(pname(product(t.productId)||{})+" "+(t.imei||"")+" "+t.location+" "+t.staff+" "+(t.note||"")).toLowerCase().includes(q)).map(t=>`<tr><td>${date(t.at)}</td><td>${esc(pname(product(t.productId)||{}))}</td><td>${esc(t.imei||t.qty+" units")}</td><td>${esc(t.location)}</td><td>${esc(t.method==="scan"?"Barcode Scan":"Manual Entry")}</td><td>${esc(t.staff)}</td><td>${esc(t.note||"")}</td></tr>`).join("")||"<tr><td colspan='7'>No stock out records yet</td></tr>";
+$("outHistoryRows").innerHTML=db.stockOuts.slice().reverse().filter(t=>locationVisible(t.location)&&(pname(product(t.productId)||{})+" "+(t.imei||"")+" "+t.location+" "+t.staff+" "+(t.note||"")).toLowerCase().includes(q)).map(t=>`<tr><td>${date(t.at)}</td><td>${esc(pname(product(t.productId)||{}))}</td><td>${esc(t.imei||t.qty+" units")}</td><td>${esc(t.location)}</td><td>${esc(t.method==="scan"?"Barcode Scan":"Manual Entry")}</td><td>${esc(t.staff)}</td><td>${esc(t.note||"")}</td></tr>`).join("")||"<tr><td colspan='7'>No stock out records yet</td></tr>";
 }
 $("barcodeProduct").onchange=renderBarcodeOptions;$("barcodeLocation").onchange=renderBarcodeOptions;$("barcodeForm").onsubmit=e=>{e.preventDefault();printBarcodeLabel();};
 $("stockProduct").onchange=syncStock;$("transferProduct").onchange=syncTransfer;$("fromLocation").onchange=syncTransfer;
@@ -788,6 +800,7 @@ $("purchaseProduct").innerHTML=db.products.map(p=>'<option value="'+p.id+'">'+es
 syncAdjustment();syncPurchase();
 $("locationFilter").value=activeLocation;
 $("saleLocation").value=activeLocation;
+if($("damageLocation")&&!isGodownView())$("damageLocation").value=activeLocation;
 addOptions();
 $("saleProduct").innerHTML=db.products.map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");
 $("customerReturnProduct").innerHTML=db.products.map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");
@@ -795,9 +808,9 @@ $("shopReturnProduct").innerHTML=db.products.map(p=>`<option value="${p.id}">${e
 $("damageProduct").innerHTML=db.products.map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");
 syncSale();renderSaleCart();renderSalesHistory();
 if($("outProduct")){$("outProduct").innerHTML=db.products.map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");syncOut();}
-let loc=activeLocation;
-let devices=db.devices.filter(d=>loc==="All Locations"||d.location===loc),accessories=db.accessories.filter(a=>loc==="All Locations"||a.location===loc);
-$("totalProducts").textContent=db.products.length;$("totalMobiles").textContent=devices.length;$("totalAccessories").textContent=accessories.reduce((s,a)=>s+a.qty,0);$("totalTransfers").textContent=db.transfers.length;
+let loc=activeLocation,scope=isGodownView()?locations:[activeLocation];
+let devices=db.devices.filter(d=>scope.includes(d.location)),accessories=db.accessories.filter(a=>scope.includes(a.location));
+$("totalProducts").textContent=db.products.filter(p=>productLocationBreakdown(p).length>0).length;$("totalMobiles").textContent=devices.length;$("totalAccessories").textContent=accessories.reduce((s,a)=>s+a.qty,0);$("totalTransfers").textContent=db.transfers.length;
 $("locationRows").innerHTML=locations.map(l=>`<tr><td>${l}</td><td>${db.devices.filter(d=>d.location===l).length}</td><td>${db.accessories.filter(a=>a.location===l).reduce((s,a)=>s+a.qty,0)}</td></tr>`).join("");
 $("totalTransfers").textContent=db.transfers.length;
 renderProductManager();if($("productCategoryFilter")){const filter=$("productCategoryFilter"),previous=filter.value,categories=[...new Set(db.products.map(productCategory))].sort((a,b)=>a.localeCompare(b));filter.innerHTML='<option value="All Categories">All Categories</option>'+categories.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join("");filter.value=categories.includes(previous)?previous:"All Categories";}renderProducts();renderReturns();renderDamages();syncReturnForms();syncDamage();renderLocationManager();renderLowStock();renderAdjustments();renderPurchases();if($("reportStockRows"))renderReports();
@@ -806,7 +819,7 @@ renderHistory();renderOutHistory();renderSalesHistory();
 }
 function renderHistory(){
 let q=($("historySearch").value||"").toLowerCase();
-$("historyRows").innerHTML=db.transfers.slice().reverse().filter(t=>(pname(product(t.productId)||{})+" "+(t.imei||"")+" "+t.from+" "+t.to+" "+t.staff).toLowerCase().includes(q)).map(t=>`<tr><td>${date(t.at)}</td><td>${esc(pname(product(t.productId)||{}))}</td><td>${esc(t.imei||t.qty+" units")}</td><td>${esc(t.from)}</td><td>${esc(t.to)}</td><td>${esc(t.staff)}</td></tr>`).join("")||"<tr><td colspan='6'>No transfers yet</td></tr>";
+$("historyRows").innerHTML=db.transfers.slice().reverse().filter(t=>(isGodownView()||t.from===activeLocation||t.to===activeLocation)&&(pname(product(t.productId)||{})+" "+(t.imei||"")+" "+t.from+" "+t.to+" "+t.staff).toLowerCase().includes(q)).map(t=>`<tr><td>${date(t.at)}</td><td>${esc(pname(product(t.productId)||{}))}</td><td>${esc(t.imei||t.qty+" units")}</td><td>${esc(t.from)}</td><td>${esc(t.to)}</td><td>${esc(t.staff)}</td></tr>`).join("")||"<tr><td colspan='6'>No transfers yet</td></tr>";
 }
 render();
 </script>
