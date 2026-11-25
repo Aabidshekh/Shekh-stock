@@ -106,6 +106,8 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <section id="barcodes"><h2>Barcode Generate & Print</h2><div class="panel"><form id="barcodeForm"><label>Product</label><select id="barcodeProduct"></select><label>Location</label><select id="barcodeLocation"></select><label>Barcode Item</label><select id="barcodeItem"></select><label>Copies</label><input id="barcodeCopies" type="number" min="1" max="100" value="1"><label>Label Size</label><select id="barcodeSize"><option value="50x30">50 x 30 mm</option><option value="70x35">70 x 35 mm</option></select><button type="submit">Print Barcode Label</button></form></div></section><section id="productList">
 <h2>Product List & Current Stock</h2>
 <p class="muted">This is your stock view. Adding a product is kept in a separate section.</p>
+<div class="panel"><h3>Manage Products</h3><p class="muted">Yahan se product details edit karein. Delete sirf tab hoga jab product ka stock zero ho aur uska koi transaction history record na ho.</p><input id="manageProductSearch" placeholder="Search product, brand, model or barcode" oninput="renderProductManager()"><div class="tablewrap"><table><thead><tr><th>Product</th><th>Type</th><th>Total Stock</th><th>Barcode / SKU</th><th>Action</th></tr></thead><tbody id="productManageRows"></tbody></table></div></div>
+<div class="panel" id="productEditPanel" style="display:none"><h3>Edit Product</h3><form id="productEditForm"><input id="editProductId" type="hidden"><label>Product Name</label><input id="editProductName" required maxlength="100"><div class="row"><div><label>Brand</label><input id="editProductBrand"></div><div><label>Model / Category</label><input id="editProductModel"></div></div><div class="row"><div><label>Selling Price (₹)</label><input id="editProductSalePrice" type="number" min="0" step="0.01" required></div><div><label>Purchase Price (₹)</label><input id="editProductPurchasePrice" type="number" min="0" step="0.01"></div></div><div class="row"><div><label>Minimum Stock Alert</label><input id="editProductMinStock" type="number" min="0" step="1"></div><div><label>Barcode / SKU</label><input id="editProductBarcode" maxlength="80"></div></div><label>Product Icon</label><select id="editProductIcon"><option value="phone">Mobile phone</option><option value="charger">Fast charger / adapter</option><option value="earbuds">Earbuds / headphones</option><option value="battery">Battery / power bank</option><option value="box">Accessories / other</option><option value="case">Cover / glass</option><option value="watch">Smartwatch</option><option value="laptop">Laptop / tablet</option><option value="parts">Repair parts</option><option value="gadget">Gadget</option></select><button type="submit">Save Changes</button> <button type="button" class="secondary" onclick="cancelProductEdit()">Cancel</button></form></div>
 <div class="panel">
 <input id="productSearch" placeholder="Search product, barcode or IMEI" oninput="renderProducts()">
 <div class="tablewrap"><table><thead><tr><th>Icon</th><th>Product</th><th>Type</th><th>IMEI / Barcode</th><th>Location</th><th>Stock</th><th>Sale Price</th></tr></thead><tbody id="productRows"></tbody></table></div>
@@ -525,6 +527,43 @@ const css="@page{size:"+z[0]+"mm "+z[1]+"mm;margin:0}body{margin:0;font-family:A
 w.document.write("<html><head><style>"+css+"</style></head><body>"+labels+"<script>window.onload=function(){window.print()}<"+"/script></body></html>");w.document.close();
 }
 
+function renderProductManager(){
+const body=$("productManageRows");if(!body)return;
+const q=($("manageProductSearch").value||"").toLowerCase();
+body.innerHTML=db.products.filter(p=>(pname(p)+" "+(p.barcode||"")).toLowerCase().includes(q)).map(p=>{
+const qty=p.type==="mobile"?db.devices.filter(d=>d.productId===p.id).length:db.accessories.filter(x=>x.productId===p.id).reduce((s,x)=>s+Number(x.qty||0),0);
+return '<tr><td>'+esc(pname(p))+'</td><td>'+(p.type==="mobile"?"Mobile":"Accessory")+'</td><td>'+qty+'</td><td>'+esc(p.barcode||"-")+'</td><td><button type="button" onclick="editProduct(\''+p.id+'\')">Edit</button> <button type="button" class="secondary" onclick="deleteProduct(\''+p.id+'\')">Delete</button></td></tr>';
+}).join("")||"<tr><td colspan='5'>No products found</td></tr>";
+}
+function editProduct(id){
+const p=product(id);if(!p)return alert("Product not found");
+$("editProductId").value=p.id;$("editProductName").value=p.name||"";$("editProductBrand").value=p.brand||"";$("editProductModel").value=p.model||"";
+$("editProductSalePrice").value=Number(p.salePrice||0);$("editProductPurchasePrice").value=p.purchasePrice==null?"":p.purchasePrice;
+$("editProductMinStock").value=Number(p.minStock||0);$("editProductBarcode").value=p.barcode||"";$("editProductIcon").value=p.icon||"box";
+$("productEditPanel").style.display="block";$("productEditPanel").scrollIntoView({behavior:"smooth",block:"start"});
+}
+function cancelProductEdit(){$("productEditForm").reset();$("productEditPanel").style.display="none";}
+function deleteProduct(id){
+const p=product(id);if(!p)return;
+const qty=p.type==="mobile"?db.devices.some(d=>d.productId===id):db.accessories.some(x=>x.productId===id&&Number(x.qty||0)>0);
+if(qty)return alert("Is product ka stock abhi maujood hai. Pehle stock ko sale, transfer ya proper stock entry se zero karein.");
+const historyKeys=["transfers","stockOuts","sales","returns","damages","adjustments","purchases"];
+const hasHistory=historyKeys.some(k=>Array.isArray(db[k])&&db[k].some(x=>x&&(x.productId===id||(Array.isArray(x.items)&&x.items.some(it=>it&&it.productId===id)))));
+if(hasHistory)return alert("Is product ki transaction history maujood hai. History safe rakhne ke liye ise delete nahi kar sakte.");
+if(!confirm('"'+pname(p)+'" ko permanently delete karna hai?'))return;
+db.products=db.products.filter(x=>x.id!==id);db.accessories=db.accessories.filter(x=>x.productId!==id);save();cancelProductEdit();render();
+}
+$("productEditForm").onsubmit=e=>{
+e.preventDefault();const p=product($("editProductId").value);if(!p)return alert("Product not found");
+const name=$("editProductName").value.trim(),barcode=$("editProductBarcode").value.trim(),salePrice=Number($("editProductSalePrice").value),purchaseRaw=$("editProductPurchasePrice").value.trim(),purchasePrice=purchaseRaw===""?null:Number(purchaseRaw),minStock=Number($("editProductMinStock").value);
+if(!name)return alert("Product name zaroor likhein");
+if(!Number.isFinite(salePrice)||salePrice<0)return alert("Selling price sahi enter karein");
+if(purchasePrice!==null&&(!Number.isFinite(purchasePrice)||purchasePrice<0))return alert("Purchase price sahi enter karein");
+if(!Number.isInteger(minStock)||minStock<0)return alert("Minimum stock zero ya positive whole number hona chahiye");
+if(barcode&&db.products.some(x=>x.id!==p.id&&x.barcode&&x.barcode.toLowerCase()===barcode.toLowerCase()))return alert("Ye barcode kisi doosre product ko diya hua hai");
+p.name=name;p.brand=$("editProductBrand").value.trim();p.model=$("editProductModel").value.trim();p.salePrice=salePrice;p.purchasePrice=purchasePrice;p.minStock=minStock;p.barcode=barcode;p.icon=$("editProductIcon").value;
+save();cancelProductEdit();render();alert("Product details update ho gayi hain.");
+};
 function renderProducts(){
 if(!$("productRows"))return;
 let loc=$("locationFilter").value,q=($("productSearch").value||"").toLowerCase(),rows=[];
@@ -739,7 +778,7 @@ let devices=db.devices.filter(d=>loc==="All Locations"||d.location===loc),access
 $("totalProducts").textContent=db.products.length;$("totalMobiles").textContent=devices.length;$("totalAccessories").textContent=accessories.reduce((s,a)=>s+a.qty,0);$("totalTransfers").textContent=db.transfers.length;
 $("locationRows").innerHTML=locations.map(l=>`<tr><td>${l}</td><td>${db.devices.filter(d=>d.location===l).length}</td><td>${db.accessories.filter(a=>a.location===l).reduce((s,a)=>s+a.qty,0)}</td></tr>`).join("");
 $("totalTransfers").textContent=db.transfers.length;
-renderProducts();renderReturns();renderDamages();syncReturnForms();syncDamage();renderLocationManager();renderLowStock();renderAdjustments();renderPurchases();if($("reportStockRows"))renderReports();
+renderProductManager();renderProducts();renderReturns();renderDamages();syncReturnForms();syncDamage();renderLocationManager();renderLowStock();renderAdjustments();renderPurchases();if($("reportStockRows"))renderReports();
 $("recent").innerHTML=db.transfers.slice(-5).reverse().map(t=>`<p>${esc(t.imei||t.qty+" units")} · ${esc(t.from)} → ${esc(t.to)} · ${date(t.at)}</p>`).join("")||"No transfers yet";
 renderHistory();renderOutHistory();renderSalesHistory();
 }
