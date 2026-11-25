@@ -51,6 +51,9 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <button onclick="show('damage')">Damage & Replacement</button>
 <button onclick="show('outHistory')">Stock Out History</button>
 <button onclick="show('locations')">Manage Shops / Godowns</button>
+<button onclick="show('adjustment')">Stock Adjustment</button>
+<button onclick="show('reports')">Reports</button>
+<button onclick="show('backup')">Backup & Restore</button>
 </nav>
 <main>
 <section id="dashboard" class="active">
@@ -63,6 +66,7 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <div class="card"><small>Transfers</small><div class="num" id="totalTransfers">0</div></div>
 </div>
 <div class="panel"><h3>Shop-wise Stock</h3><div class="tablewrap"><table><thead><tr><th>Location</th><th>Mobile IMEIs</th><th>Accessory Units</th></tr></thead><tbody id="locationRows"></tbody></table></div></div>
+<div class="panel"><h3>Low Stock Alerts</h3><div id="lowStockRows"></div></div>
 <div class="panel"><h3>Recent Transfers</h3><div id="recent"></div></div>
 </section>
 <section id="locations">
@@ -74,7 +78,9 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <button type="submit">Add Location</button></form></div>
 <div class="panel"><h3>Current Shops & Godowns</h3><div class="tablewrap"><table><thead><tr><th>Name</th><th>Type</th><th>Action</th></tr></thead><tbody id="locationManageRows"></tbody></table></div></div>
 </section>
-<section id="addProduct">
+<section id="adjustment"><h2>Stock Adjustment</h2><p class="muted">Every stock correction is recorded with before/after quantity and reason. Secure Owner-only access will be enabled with the real login/backend system.</p><div class="panel"><form id="adjustmentForm"><label>Location</label><select id="adjustLocation"></select><label>Product</label><select id="adjustProduct"></select><div id="adjustMobileFields"><label>Adjustment Action</label><select id="adjustMobileAction"><option value="add">Add IMEI to stock</option><option value="remove">Remove IMEI from stock</option></select><label>IMEI (one per line, 15 digits)</label><textarea id="adjustImeis" rows="3" placeholder="One IMEI per line"></textarea></div><div id="adjustAccessoryFields" style="display:none"><label>Adjustment</label><select id="adjustAccessoryAction"><option value="add">Increase stock</option><option value="remove">Decrease stock</option></select><label>Quantity</label><input id="adjustQty" type="number" min="1" value="1"></div><label>Reason (required)</label><input id="adjustReason" required placeholder="Physical count correction, opening balance, etc."><label>Adjusted By</label><input id="adjustStaff" required placeholder="Owner / staff name"><button type="submit">Save Adjustment</button></form></div><div class="panel"><h3>Adjustment History</h3><div class="tablewrap"><table><thead><tr><th>Date</th><th>Product</th><th>Location</th><th>Before</th><th>After</th><th>Reason</th><th>By</th></tr></thead><tbody id="adjustRows"></tbody></table></div></div></section>
+<section id="reports"><h2>Reports</h2><div class="panel"><div class="row"><div><label>From Date</label><input id="reportFrom" type="date"></div><div><label>To Date</label><input id="reportTo" type="date"></div></div><button type="button" onclick="renderReports()">Generate Report</button><div class="cards" style="margin-top:14px"><div class="card"><small>Sales Amount</small><div class="num" id="reportSales">₹0</div></div><div class="card"><small>Invoices</small><div class="num" id="reportInvoices">0</div></div><div class="card"><small>Returns</small><div class="num" id="reportReturns">0</div></div><div class="card"><small>Damage Records</small><div class="num" id="reportDamages">0</div></div></div><div class="panel"><h3>Location-wise Current Stock</h3><div class="tablewrap"><table><thead><tr><th>Location</th><th>Mobile IMEIs</th><th>Accessory Units</th></tr></thead><tbody id="reportStockRows"></tbody></table></div></div><div class="panel"><h3>Sales by Location</h3><div class="tablewrap"><table><thead><tr><th>Location</th><th>Invoices</th><th>Sales Amount</th></tr></thead><tbody id="reportLocationSales"></tbody></table></div></div></div></section>
+<section id="backup"><h2>Backup & Restore</h2><p class="muted">Download a full JSON backup of products, IMEIs, stock, sales, returns, damage records, locations and history. Keep a copy on another drive.</p><div class="panel"><h3>Download Backup</h3><p>Save a copy of your complete current data on your computer.</p><button type="button" onclick="downloadBackup()">Download Full Backup</button></div><div class="panel"><h3>Restore Backup</h3><p class="muted">Restoring replaces current browser data. Download a backup of current data first.</p><label>Select Shekh Stock JSON backup</label><input id="restoreFile" type="file" accept=".json,application/json"><button type="button" onclick="restoreBackup()">Restore Selected Backup</button></div><div class="panel"><h3>Backup Reminder</h3><p id="backupInfo" class="muted">Remember to download a backup regularly and keep it on a separate drive.</p></div></section><section id="addProduct">
 <h2>Add Product</h2>
 <p class="muted">Mobiles are tracked by individual IMEI. Accessories by quantity.</p>
 <div class="panel">
@@ -84,7 +90,8 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <select id="pType" onchange="toggleType()"><option value="mobile">Mobile</option><option value="accessory">Accessory</option></select>
 <label>Product Name</label><input id="pName" required placeholder="Samsung Galaxy A54 / Charger">
 <label>Product Icon</label><select id="pIcon"><option value="phone">Mobile phone</option><option value="charger">Fast charger / adapter</option><option value="earbuds">Earbuds / headphones</option><option value="battery">Battery / power bank</option><option value="box">Accessories / other</option><option value="case">Cover / glass</option><option value="watch">Smartwatch</option><option value="laptop">Laptop / tablet</option><option value="parts">Repair parts</option><option value="gadget">Gadget</option></select>
-<label>Selling Price (₹ per unit)</label><input id="pSalePrice" type="number" min="0" step="0.01" value="0" placeholder="Selling price"><label>Purchase Price (₹ per unit) — Owner entry</label><input id="pPurchasePrice" type="number" min="0" step="0.01" placeholder="Optional; not shown in stock list or sales invoice">
+<label>Selling Price (₹ per unit)</label><input id="pSalePrice" type="number" min="0" step="0.01" value="0" placeholder="Selling price">
+<label>Minimum Stock Alert (units)</label><input id="pMinStock" type="number" min="0" step="1" value="0" placeholder="0 = alert disabled"><label>Purchase Price (₹ per unit) — Owner entry</label><input id="pPurchasePrice" type="number" min="0" step="0.01" placeholder="Optional; not shown in stock list or sales invoice">
 <label>Brand</label><input id="pBrand" placeholder="Brand">
 <label>Model / Category</label><input id="pModel" placeholder="Model or category">
 <label>Barcode / SKU</label><input id="pBarcode" placeholder="Optional">
@@ -255,6 +262,7 @@ if(!Array.isArray(db.stockOuts))db.stockOuts=[];
 if(!Array.isArray(db.sales))db.sales=[];
 if(!Array.isArray(db.returns))db.returns=[];
 if(!Array.isArray(db.damages))db.damages=[];
+if(!Array.isArray(db.adjustments))db.adjustments=[];
 let saleCart=[];
 const $=id=>document.getElementById(id);
 const save=()=>localStorage.setItem(KEY,JSON.stringify(db));
@@ -282,13 +290,22 @@ const now=()=>new Date().toISOString();
 const date=d=>new Date(d).toLocaleString();
 function show(id){document.querySelectorAll("main section").forEach(s=>s.classList.remove("active"));$(id).classList.add("active");render()}
 function setActiveLocation(location){if(!locations.includes(location))return;activeLocation=location;localStorage.setItem(ACTIVE_LOCATION_KEY,location);render()}
+
+function downloadBackup(){const payload={app:"Shekh Stock",version:1,createdAt:now(),data:db};const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="Shekh-Stock-Backup-"+new Date().toISOString().slice(0,10)+".json";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);$("backupInfo").textContent="Backup downloaded: "+new Date().toLocaleString();}
+async function restoreBackup(){const file=$("restoreFile").files[0];if(!file)return alert("Please select a backup JSON file");try{const parsed=JSON.parse(await file.text()),data=parsed.data||parsed;if(!data||!Array.isArray(data.products)||!Array.isArray(data.devices)||!Array.isArray(data.accessories))return alert("This file is not a valid Shekh Stock backup");if(!confirm("WARNING: Current browser data will be replaced. Have you downloaded a backup of current data? Continue?"))return;localStorage.setItem(KEY,JSON.stringify(data));alert("Backup restored. The app will reload.");window.location.reload();}catch(e){alert("Backup file could not be read. Please select a valid JSON backup.");}}
+function productLocationQty(p,loc){return p.type==="mobile"?db.devices.filter(d=>d.productId===p.id&&d.location===loc).length:(db.accessories.find(a=>a.productId===p.id&&a.location===loc)?.qty||0);}
+function renderLowStock(){const el=$("lowStockRows");if(!el)return;let rows=[];db.products.filter(p=>Number(p.minStock||0)>0).forEach(p=>locations.forEach(loc=>{let qty=productLocationQty(p,loc),min=Number(p.minStock||0);if(qty<=min)rows.push("<tr><td>"+esc(pname(p))+"</td><td>"+esc(loc)+"</td><td>"+qty+"</td><td>"+min+"</td></tr>");}));el.innerHTML=rows.length?'<div class="tablewrap"><table><thead><tr><th>Product</th><th>Location</th><th>Available</th><th>Minimum</th></tr></thead><tbody>'+rows.join("")+'</tbody></table></div>':"<p class='muted'>No low-stock alerts. Set a minimum quantity on products to enable alerts.</p>";}
+function syncAdjustment(){let p=product($("adjustProduct").value),mobile=p&&p.type==="mobile";$("adjustMobileFields").style.display=mobile?"block":"none";$("adjustAccessoryFields").style.display=mobile?"none":"block";}
+function renderAdjustments(){$("adjustRows").innerHTML=db.adjustments.slice().reverse().map(a=>'<tr><td>'+date(a.at)+'</td><td>'+esc(pname(product(a.productId)||{}))+'</td><td>'+esc(a.location)+'</td><td>'+esc(a.before)+'</td><td>'+esc(a.after)+'</td><td>'+esc(a.reason)+'</td><td>'+esc(a.staff)+'</td></tr>').join("")||'<tr><td colspan="7">No adjustments yet</td></tr>';}
+function renderReports(){let from=$("reportFrom").value,to=$("reportTo").value;let inRange=x=>{let d=String(x.at||"").slice(0,10);return(!from||d>=from)&&(!to||d<=to);};let sales=db.sales.filter(inRange),returns=db.returns.filter(inRange),damages=db.damages.filter(inRange);$("reportSales").textContent="₹"+sales.reduce((s,x)=>s+Number(x.total||0),0).toFixed(2);$("reportInvoices").textContent=sales.length;$("reportReturns").textContent=returns.length;$("reportDamages").textContent=damages.length;$("reportStockRows").innerHTML=locations.map(loc=>'<tr><td>'+esc(loc)+'</td><td>'+db.devices.filter(d=>d.location===loc).length+'</td><td>'+db.accessories.filter(a=>a.location===loc).reduce((s,a)=>s+a.qty,0)+'</td></tr>').join("");$("reportLocationSales").innerHTML=locations.map(loc=>{let arr=sales.filter(s=>s.location===loc);return '<tr><td>'+esc(loc)+'</td><td>'+arr.length+'</td><td>₹'+arr.reduce((s,x)=>s+Number(x.total||0),0).toFixed(2)+'</td></tr>';}).join("");}
+
 function locationOptions(selected,shopsOnly=false){
 let names=locations.filter(name=>!shopsOnly||db.locationTypes[name]==="shop");
 if(selected&&!names.includes(selected))selected="";
 return names.map(name=>'<option value="'+esc(name)+'"'+(name===selected?' selected':'')+'>'+esc(name)+'</option>').join("");
 }
 function renderLocationControls(){
-const configs=[["locationFilter",false],["pLocation",false],["stockLocation",false],["fromLocation",false],["toLocation",false],["outLocation",false],["customerReturnLocation",false],["shopReturnFrom",true],["damageLocation",false],["saleLocation",false]];
+const configs=[["locationFilter",false],["pLocation",false],["stockLocation",false],["fromLocation",false],["toLocation",false],["outLocation",false],["customerReturnLocation",false],["shopReturnFrom",true],["damageLocation",false],["saleLocation",false],["adjustLocation",false]];
 configs.forEach(([id,shopsOnly])=>{let el=$(id);if(!el)return;let selected=el.value;if(id==="locationFilter"||id==="saleLocation")selected=activeLocation;el.innerHTML=locationOptions(selected,shopsOnly);if(!el.value&&el.options.length)el.value=el.options[0].value;});
 }
 function locationInUse(name){
@@ -502,6 +519,17 @@ if(!name)return alert("Location ka naam likhein");
 if(locations.some(x=>x.toLowerCase()===name.toLowerCase()))return alert("Ye location pehle se maujood hai");
 locations.push(name);db.locations=locations;db.locationTypes[name]=type;save();e.target.reset();render();alert(name+" add ho gaya.");
 };
+$("adjustProduct").innerHTML=db.products.map(p=>'<option value="'+p.id+'">'+esc(pname(p))+'</option>').join("");
+$("adjustProduct").onchange=syncAdjustment;
+$("adjustmentForm").onsubmit=e=>{
+e.preventDefault();let p=product($("adjustProduct").value),loc=$("adjustLocation").value,reason=$("adjustReason").value.trim(),staff=$("adjustStaff").value.trim();if(!p||!reason||!staff)return alert("Complete all required fields");
+if(p.type==="mobile"){
+let arr=$("adjustImeis").value.split(/[\n,]+/).map(x=>x.trim()).filter(Boolean);if(!arr.length)return alert("Enter IMEI(s)");if(arr.some(x=>!/^\d{15}$/.test(x)))return alert("Each IMEI must be 15 digits");
+if($("adjustMobileAction").value==="add"){if(new Set(arr).size!==arr.length||arr.some(x=>db.devices.some(d=>d.imei===x)))return alert("Duplicate IMEI found");let before=productLocationQty(p,loc);arr.forEach(imei=>db.devices.push({id:crypto.randomUUID(),productId:p.id,imei,location:loc}));let after=productLocationQty(p,loc);db.adjustments.push({id:crypto.randomUUID(),productId:p.id,location:loc,before,after,reason,staff,at:now(),items:arr});}
+else{let found=arr.map(imei=>db.devices.find(d=>d.imei===imei&&d.productId===p.id&&d.location===loc));if(found.some(x=>!x))return alert("One or more IMEIs are not at this location");let before=productLocationQty(p,loc);db.devices=db.devices.filter(d=>!arr.includes(d.imei));let after=productLocationQty(p,loc);db.adjustments.push({id:crypto.randomUUID(),productId:p.id,location:loc,before,after,reason,staff,at:now(),items:arr});}
+}else{let qty=Number($("adjustQty").value),action=$("adjustAccessoryAction").value,stock=db.accessories.find(a=>a.productId===p.id&&a.location===loc),before=stock?stock.qty:0;if(!Number.isInteger(qty)||qty<1)return alert("Enter valid quantity");if(action==="remove"&&before<qty)return alert("Not enough stock to decrease");if(!stock){stock={productId:p.id,location:loc,qty:0};db.accessories.push(stock);}stock.qty+=action==="add"?qty:-qty;db.adjustments.push({id:crypto.randomUUID(),productId:p.id,location:loc,before,after:stock.qty,reason,staff,at:now()});}
+save();e.target.reset();syncAdjustment();render();alert("Stock adjustment saved with history.");
+};
 $("productForm").onsubmit=e=>{
 e.preventDefault();
 let type=$("pType").value,name=$("pName").value.trim(),barcode=$("pBarcode").value.trim();
@@ -510,7 +538,8 @@ let salePrice=Number($("pSalePrice").value);
 if(!Number.isFinite(salePrice)||salePrice<0)return alert("Enter a valid sale price");
 let purchaseRaw=$("pPurchasePrice").value.trim(),purchasePrice=purchaseRaw===""?null:Number(purchaseRaw);
 if(purchasePrice!==null&&(!Number.isFinite(purchasePrice)||purchasePrice<0))return alert("Enter a valid purchase price");
-let p={id:Date.now().toString(),type,name,brand:$("pBrand").value.trim(),model:$("pModel").value.trim(),barcode,icon:$("pIcon").value,salePrice,purchasePrice};
+let minStock=Number($("pMinStock").value||0);if(!Number.isInteger(minStock)||minStock<0)return alert("Minimum stock must be zero or a positive whole number");
+let p={id:Date.now().toString(),type,name,brand:$("pBrand").value.trim(),model:$("pModel").value.trim(),barcode,icon:$("pIcon").value,salePrice,purchasePrice,minStock};
 let imeis=$("pImeis").value.split(/[\n,]+/).map(x=>x.trim()).filter(Boolean);
 if(type==="mobile"){
 if(imeis.some(x=>!/^\d{15}$/.test(x)))return alert("Every IMEI must be 15 digits");
@@ -661,7 +690,7 @@ let devices=db.devices.filter(d=>loc==="All Locations"||d.location===loc),access
 $("totalProducts").textContent=db.products.length;$("totalMobiles").textContent=devices.length;$("totalAccessories").textContent=accessories.reduce((s,a)=>s+a.qty,0);$("totalTransfers").textContent=db.transfers.length;
 $("locationRows").innerHTML=locations.map(l=>`<tr><td>${l}</td><td>${db.devices.filter(d=>d.location===l).length}</td><td>${db.accessories.filter(a=>a.location===l).reduce((s,a)=>s+a.qty,0)}</td></tr>`).join("");
 $("totalTransfers").textContent=db.transfers.length;
-renderProducts();renderReturns();renderDamages();syncReturnForms();syncDamage();renderLocationManager();
+renderProducts();renderReturns();renderDamages();syncReturnForms();syncDamage();renderLocationManager();renderLowStock();renderAdjustments();if($("reportStockRows"))renderReports();
 $("recent").innerHTML=db.transfers.slice(-5).reverse().map(t=>`<p>${esc(t.imei||t.qty+" units")} · ${esc(t.from)} → ${esc(t.to)} · ${date(t.at)}</p>`).join("")||"No transfers yet";
 renderHistory();renderOutHistory();renderSalesHistory();
 }
