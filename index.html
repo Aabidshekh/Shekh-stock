@@ -146,6 +146,7 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <div class="row"><div><label>Search Product / IMEI</label><input id="productSearch" placeholder="Search product, barcode or IMEI" oninput="renderProducts()"></div><div><label>Filter by Category</label><select id="productCategoryFilter" onchange="renderProducts()"><option value="All Categories">All Categories</option></select></div></div>
 <div class="tablewrap"><table><thead><tr><th>Icon</th><th>Product</th><th>Type</th><th>IMEI / Barcode</th><th>Location</th><th>Stock</th><th>Sale Price</th></tr></thead><tbody id="productRows"></tbody></table></div>
 </div>
+<div class="panel"><h3>Price-wise Batch Stock</h3><p class="muted">Har purchase/restock ka alag batch, quantity, purchase cost aur barcode yahan dekhein. Unverified legacy cost ko alag dikhaya jayega.</p><input id="batchInventorySearch" placeholder="Search product or batch barcode" oninput="renderBatchInventory()"><div class="tablewrap"><table><thead><tr><th>Product</th><th>Batch Barcode / IMEI</th><th>Quantity</th><th>Purchase Cost / Unit</th><th>Source</th><th>Created</th></tr></thead><tbody id="batchInventoryRows"></tbody></table></div></div>
 </section>
 <section id="stock">
 <h2>Stock In</h2><div class="panel">
@@ -721,6 +722,12 @@ const css="@page{size:"+z[0]+"mm "+z[1]+"mm;margin:0}body{margin:0;font-family:A
 w.document.write("<html><head><style>"+css+"</style></head><body>"+labels+"<script>window.onload=function(){window.print()}<"+"/script></body></html>");w.document.close();
 }
 
+function renderBatchInventory(){
+ const body=$("batchInventoryRows");if(!body)return;
+ const q=($("batchInventorySearch")?.value||"").trim().toLowerCase();
+ const rows=db.batches.filter(b=>b.location===activeLocation&&Number(b.qty)>0&&catalogProducts(activeLocation).some(p=>p.id===b.productId)).filter(b=>{const p=product(b.productId)||{};return (pname(p)+" "+(b.barcode||"")).toLowerCase().includes(q);}).sort((a,b)=>String(a.createdAt||"").localeCompare(String(b.createdAt||"")));
+ body.innerHTML=rows.map(b=>{const p=product(b.productId)||{};return '<tr><td>'+esc(pname(p))+'</td><td>'+esc(b.barcode||"—")+'</td><td>'+Number(b.qty)+'</td><td>'+(b.costVerified&&Number(b.unitCost)>0?'₹'+Number(b.unitCost).toFixed(2):'<span class="muted">Unverified</span>')+'</td><td>'+esc(b.source||"—")+'</td><td>'+esc(b.createdAt?date(b.createdAt):"—")+'</td></tr>';}).join("")||"<tr><td colspan='6'>No batch stock found at this location</td></tr>";
+}
 function renderProductManager(){
 const body=$("productManageRows");if(!body)return;
 const q=($("manageProductSearch").value||"").toLowerCase();
@@ -1096,7 +1103,7 @@ if($("outProduct")){$("outProduct").innerHTML=catalogProducts().map(p=>`<option 
 let loc=activeLocation,scope=[activeLocation];
 let devices=db.devices.filter(d=>d.location===activeLocation),accessories=db.accessories.filter(a=>a.location===activeLocation);
 $("totalProducts").textContent=db.products.filter(p=>productLocationQty(p,activeLocation)>0).length;$("totalMobiles").textContent=devices.length;$("totalAccessories").textContent=accessories.reduce((s,a)=>s+a.qty,0);$("totalTransfers").textContent=db.transfers.filter(t=>t.from===activeLocation||t.to===activeLocation).length;
-renderInventoryValuation();renderDashboardStock();renderCategoryManager();renderProductManager();if($("productCategoryFilter")){const filter=$("productCategoryFilter"),previous=filter.value,categories=catalogCategories();filter.innerHTML='<option value="All Categories">All Categories</option>'+categories.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join("");filter.value=categoryFilterInitialized&&categories.includes(previous)?previous:"All Categories";categoryFilterInitialized=true;}renderProducts();renderReturns();renderDamages();syncReturnForms();syncDamage();renderLocationManager();renderLowStock();renderAdjustments();renderPurchases();if($("reportStockRows"))renderReports();
+renderInventoryValuation();renderDashboardStock();renderCategoryManager();renderProductManager();renderBatchInventory();if($("productCategoryFilter")){const filter=$("productCategoryFilter"),previous=filter.value,categories=catalogCategories();filter.innerHTML='<option value="All Categories">All Categories</option>'+categories.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join("");filter.value=categoryFilterInitialized&&categories.includes(previous)?previous:"All Categories";categoryFilterInitialized=true;}renderProducts();renderReturns();renderDamages();syncReturnForms();syncDamage();renderLocationManager();renderLowStock();renderAdjustments();renderPurchases();if($("reportStockRows"))renderReports();
 $("recent").innerHTML=db.transfers.filter(t=>isGodownView()||t.from===activeLocation||t.to===activeLocation).slice(-5).reverse().map(t=>`<p>${esc(t.imei||t.qty+" units")} · ${esc(t.from)} → ${esc(t.to)} · ${date(t.at)}</p>`).join("")||"No transfers yet";
 renderHistory();renderOutHistory();renderSalesHistory();
 }
