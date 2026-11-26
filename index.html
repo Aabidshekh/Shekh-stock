@@ -850,11 +850,9 @@ $("shopReturnProduct").innerHTML=db.products.map(p=>`<option value="${p.id}">${e
 $("damageProduct").innerHTML=db.products.map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");
 syncSale();renderSaleCart();renderSalesHistory();
 if($("outProduct")){$("outProduct").innerHTML=db.products.map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");syncOut();}
-let loc=activeLocation,scope=isGodownView()?locations:[activeLocation];
-let devices=db.devices.filter(d=>scope.includes(d.location)),accessories=db.accessories.filter(a=>scope.includes(a.location));
-$("totalProducts").textContent=db.products.filter(p=>productLocationBreakdown(p).length>0).length;$("totalMobiles").textContent=devices.length;$("totalAccessories").textContent=accessories.reduce((s,a)=>s+a.qty,0);$("totalTransfers").textContent=db.transfers.length;
-$("locationRows").innerHTML=scopedLocations().map(l=>`<tr><td>${esc(l)}</td><td>${db.devices.filter(d=>d.location===l).length}</td><td>${db.accessories.filter(a=>a.location===l).reduce((s,a)=>s+a.qty,0)}</td></tr>`).join("");
-$("totalTransfers").textContent=db.transfers.length;
+let loc=activeLocation,scope=[activeLocation];
+let devices=db.devices.filter(d=>d.location===activeLocation),accessories=db.accessories.filter(a=>a.location===activeLocation);
+$("totalProducts").textContent=db.products.filter(p=>productLocationQty(p,activeLocation)>0).length;$("totalMobiles").textContent=devices.length;$("totalAccessories").textContent=accessories.reduce((s,a)=>s+a.qty,0);$("totalTransfers").textContent=db.transfers.filter(t=>t.from===activeLocation||t.to===activeLocation).length;
 renderDashboardStock();renderProductManager();if($("productCategoryFilter")){const filter=$("productCategoryFilter"),previous=filter.value,categories=[...new Set([...db.categories,...db.products.map(productCategory)])].sort((a,b)=>a.localeCompare(b));filter.innerHTML='<option value="All Categories">All Categories</option>'+categories.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join("");filter.value=categoryFilterInitialized&&categories.includes(previous)?previous:"All Categories";categoryFilterInitialized=true;}renderProducts();renderReturns();renderDamages();syncReturnForms();syncDamage();renderLocationManager();renderLowStock();renderAdjustments();renderPurchases();if($("reportStockRows"))renderReports();
 $("recent").innerHTML=db.transfers.filter(t=>isGodownView()||t.from===activeLocation||t.to===activeLocation).slice(-5).reverse().map(t=>`<p>${esc(t.imei||t.qty+" units")} · ${esc(t.from)} → ${esc(t.to)} · ${date(t.at)}</p>`).join("")||"No transfers yet";
 renderHistory();renderOutHistory();renderSalesHistory();
