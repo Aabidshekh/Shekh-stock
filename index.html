@@ -95,7 +95,7 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <p class="muted">Yahan se zarurat ke hisab se naye shops aur godowns add kar sakte hain. Shuruat mein 1 shop aur 1 main godown diya gaya hai.</p>
 <div class="panel"><h3>Add New Location</h3><form id="locationForm">
 <label>Location Type</label><select id="newLocationType"><option value="shop">Shop</option><option value="godown">Godown</option></select>
-<label>Location Name</label><input id="newLocationName" required maxlength="30" placeholder="e.g. Shop 2 / Jaipur Godown">
+<label>Location Name</label><input id="newLocationName" required maxlength="30" placeholder="e.g. Shop 2 / Jaipur Godown"><label>Shop GSTIN (optional)</label><input id="newLocationGstin" maxlength="15" placeholder="15-character GSTIN">
 <button type="submit">Add Location</button></form></div>
 <div class="panel"><h3>Current Shops & Godowns</h3><div class="tablewrap"><table><thead><tr><th>Name</th><th>Type</th><th>Action</th></tr></thead><tbody id="locationManageRows"></tbody></table></div></div>
 </section>
@@ -111,7 +111,7 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <select id="pType" onchange="toggleType()"><option value="mobile">Mobile</option><option value="accessory">Accessory</option></select>
 <label>Product Name</label><input id="pName" required placeholder="Samsung Galaxy A54 / Charger">
 <label>Product Icon</label><select id="pIcon" onchange="toggleCustomIcon()"><option value="phone">Mobile phone</option><option value="charger">Fast charger / adapter</option><option value="earbuds">Earbuds / headphones</option><option value="battery">Battery / power bank</option><option value="box">Accessories / other</option><option value="case">Cover / glass</option><option value="watch">Smartwatch</option><option value="laptop">Laptop / tablet</option><option value="parts">Repair parts</option><option value="gadget">Gadget</option><option value="custom">Other — choose your own emoji</option></select><div id="pCustomIconWrap" style="display:none"><label>Choose Your Icon (Emoji)</label><input id="pCustomIcon" maxlength="8" placeholder="e.g. 🖨️ 💡 🎮 🔊"></div>
-<label>Selling Price (₹ per unit)</label><input id="pSalePrice" type="number" min="0" step="0.01" value="0" placeholder="Selling price">
+<label>Selling Price (₹ per unit)</label><input id="pSalePrice" type="number" min="0" step="0.01" value="0" placeholder="Selling price"><label>GST Rate for this Product (%) — optional</label><input id="pGstRate" type="number" min="0" max="100" step="0.01" placeholder="Blank = use Sale page GST rate">
 <label>Minimum Stock Alert (units)</label><input id="pMinStock" type="number" min="0" step="1" value="0" placeholder="0 = alert disabled"><label>Purchase Price (₹ per unit) — Owner entry</label><input id="pPurchasePrice" type="number" min="0" step="0.01" placeholder="Optional; not shown in stock list or sales invoice">
 <label>Brand</label><input id="pBrand" placeholder="Brand">
 <label>Category</label><input id="pCategory" list="productCategoryOptions" required value="Mobile" placeholder="e.g. Charger, Earphone, Cable, Mobile"><datalist id="productCategoryOptions"><option value="Mobile"><option value="Charger"><option value="Earphone"><option value="Cable"><option value="Cover"><option value="Tempered Glass"><option value="Battery"><option value="Power Bank"><option value="Speaker"><option value="Watch"><option value="Other Accessories"></datalist><label>Model (optional)</label><input id="pModel" placeholder="Model number / variant">
@@ -263,10 +263,10 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <button type="button" onclick="addSaleItem()">＋ Add Product to Bill</button>
 <div class="tablewrap" style="margin-top:16px"><table><thead><tr><th>Product</th><th>IMEI / Qty</th><th>Price</th><th>Amount</th><th></th></tr></thead><tbody id="saleCartRows"></tbody></table></div>
 <p><strong>Total: ₹<span id="saleTotal">0.00</span></strong></p>
-<div class="row"><div><label>Discount (₹)</label><input id="saleDiscount" type="number" min="0" step="0.01" value="0" oninput="renderSaleCart()"></div><div><label>Payment Mode</label><select id="salePayment"><option>Cash</option><option>UPI</option><option>Card</option><option>Bank Transfer</option><option>Credit / Due</option></select></div></div>
+<div class="row"><div><label>Discount (₹)</label><input id="saleDiscount" type="number" min="0" step="0.01" value="0" oninput="renderSaleCart()"></div><div><label>Invoice Type</label><select id="saleInvoiceType" onchange="syncSaleGstUI()"><option value="non">Non-GST Invoice</option><option value="gst">GST Invoice</option></select></div><div id="saleGstRateWrap" style="display:none"><label>Default GST Rate (%)</label><input id="saleGstRate" type="number" min="0" max="100" step="0.01" value="18" oninput="renderSaleCart()"><small class="muted">Product-specific GST rates override this default rate.</small></div><div><label>Payment Mode</label><select id="salePayment"><option>Cash</option><option>UPI</option><option>Card</option><option>Bank Transfer</option><option>Credit / Due</option></select></div></div>
 <button type="button" onclick="completeSale()">Complete Sale & Generate Invoice</button>
 </div>
-<div id="invoicePreview"></div>
+<p id="saleGstPreview" class="muted">GST: Not applied</p><div id="invoicePreview"></div>
 </section>
 <section id="salesHistory">
 <h2>Sales & Invoice History</h2>
@@ -463,8 +463,9 @@ return has(db.devices,"location")||has(db.accessories,"location")||has(db.transf
 }
 function renderLocationManager(){
 const body=$("locationManageRows");if(!body)return;
-body.innerHTML=locations.map(name=>'<tr><td>'+esc(name)+'</td><td>'+((db.locationTypes[name]==="godown")?"Godown":"Shop")+'</td><td><button type="button" class="secondary" onclick="removeLocation(\''+esc(name).replace(/'/g,"\\'")+'\')">Remove</button></td></tr>').join("");
+body.innerHTML=locations.map(name=>{const gst=db.locationGstins?.[name]||"";return '<tr><td>'+esc(name)+'</td><td>'+((db.locationTypes[name]==="godown")?"Godown":"Shop")+'</td><td>'+(db.locationTypes[name]==="shop"?(gst?"GSTIN: "+esc(gst):"GSTIN not added")+' <button type="button" class="secondary" onclick="editLocationGstin(\''+esc(name).replace(/'/g,"\\'")+'\')">'+(gst?"Edit GSTIN":"Add GSTIN")+'</button>':"—")+' <button type="button" class="secondary" onclick="removeLocation(\''+esc(name).replace(/'/g,"\\'")+'\')">Remove</button></td></tr>';}).join("");
 }
+function editLocationGstin(name){if(db.locationTypes[name]!=="shop")return;db.locationGstins=db.locationGstins||{};const current=db.locationGstins[name]||"",value=prompt("Shop GSTIN enter karein. Blank chhodne par GSTIN delete ho jayega:",current);if(value===null)return;const gst=value.trim().toUpperCase();if(gst&&!/^[0-9A-Z]{15}$/.test(gst))return alert("GSTIN must contain exactly 15 letters/numbers");if(gst)db.locationGstins[name]=gst;else delete db.locationGstins[name];save();renderLocationManager();}
 function removeLocation(name){
 if(!locations.includes(name))return;
 const type=db.locationTypes[name];
@@ -575,7 +576,9 @@ const verified=costLayers.length&&costLayers.every(x=>x.costVerified&&Number(x.u
 const lossValue=verified?costLayers.reduce((sum,x)=>sum+Number(x.qty)*Number(x.unitCost),0):null;
 db.damages.push({id:crypto.randomUUID(),productId,location,qty,imeis:[...imeis],company,reason,source,costLayers,lossValue,costVerified:!!verified,at:now(),replacementReceived:0,replacementImeis:[],lossQty:0,status:"Pending"});
 }
+function syncSaleGstUI(){const gst=$("saleInvoiceType").value==="gst";$("saleGstRateWrap").style.display=gst?"block":"none";}
 function syncSale(){
+syncSaleGstUI();
 $("saleLocation").value=activeLocation;
 let p=product($("saleProduct").value),loc=activeLocation,mobile=p&&p.type==="mobile";
 $("saleMobileFields").style.display=mobile?"block":"none";
@@ -616,19 +619,22 @@ const layers=db.batches.filter(b=>b.productId===p.id&&b.location===loc&&Number(b
 for(const b of layers){if(remaining<=0)break;const take=Math.min(remaining,Number(b.qty));batchAllocations.push({batchId:b.id,qty:take,unitCost:b.unitCost,costVerified:!!b.costVerified});remaining-=take;}
 if(remaining>0){const legacyId=crypto.randomUUID();db.batches.push({id:legacyId,productId:p.id,location:loc,qty:remaining,unitCost:null,source:"legacy-untracked",costVerified:false,barcode:"",createdAt:new Date().toISOString(),legacy:true});batchAllocations.push({batchId:legacyId,qty:remaining,unitCost:null,costVerified:false});}
 }
-saleCart.push({productId:p.id,qty,imei,unitPrice:price,amount:qty*price,location:loc,batchAllocations});
+saleCart.push({productId:p.id,qty,imei,unitPrice:price,amount:qty*price,location:loc,gstRate:p.gstRate??null,batchAllocations});
 renderSaleCart();if(p.type==="mobile")syncSale();else updateSalePreview();
 }
 function removeSaleItem(i){saleCart.splice(i,1);renderSaleCart()}
+function calculateSaleGst(items,discount,defaultRate){let subtotal=items.reduce((n,x)=>n+Number(x.amount||0),0);return items.reduce((sum,x)=>{const taxable=Math.max(0,Number(x.amount||0)-(subtotal?discount*Number(x.amount||0)/subtotal:0));const rate=x.gstRate==null?defaultRate:Number(x.gstRate);return sum+taxable*rate/100;},0);}
 function renderSaleCart(){
 if(!$("saleCartRows"))return;
 $("saleCartRows").innerHTML=saleCart.map((x,i)=>{let p=product(x.productId)||{};return `<tr><td>${iconMarkup(p.icon)} ${esc(pname(p))}</td><td>${esc(x.imei||x.qty+" units")}</td><td>₹${x.unitPrice.toFixed(2)}</td><td>₹${x.amount.toFixed(2)}</td><td><button class="secondary" type="button" onclick="removeSaleItem(${i})">Remove</button></td></tr>`}).join("")||"<tr><td colspan='5'>No items added</td></tr>";
-let subtotal=saleCart.reduce((s,x)=>s+x.amount,0),discount=Number($("saleDiscount").value)||0;
-$("saleTotal").textContent=Math.max(0,subtotal-discount).toFixed(2);
+let subtotal=saleCart.reduce((s,x)=>s+x.amount,0),discount=Number($("saleDiscount").value)||0,gstOn=$("saleInvoiceType").value==="gst",rate=Number($("saleGstRate").value||0),tax=gstOn?calculateSaleGst(saleCart,discount,rate):0;
+$("saleTotal").textContent=Math.max(0,subtotal-discount+tax).toFixed(2);
+const taxPreview=$("saleGstPreview");if(taxPreview)taxPreview.textContent=gstOn?"GST: ₹"+tax.toFixed(2):"GST: Not applied";
 }
 function invoiceMarkup(s){
-let lines=s.items.map(x=>{let p=product(x.productId)||{};return `<tr><td>${iconMarkup(p.icon)} ${esc(pname(p))}</td><td>${esc(x.imei||x.qty)}</td><td>₹${Number(x.unitPrice).toFixed(2)}</td><td>₹${Number(x.amount).toFixed(2)}</td></tr>`}).join("");
-return `<div class="invoice-paper"><div style="display:flex;justify-content:space-between;gap:20px"><div><h2 style="margin:0;color:#17345d">SHEKH STOCK</h2><p>Sales Invoice</p></div><div style="text-align:right"><strong>${esc(s.invoiceNo)}</strong><br>${esc(date(s.at))}<br>${esc(s.location)}</div></div><hr><p><strong>Customer:</strong> ${esc(s.customer||"Walk-in Customer")}<br><strong>Mobile:</strong> ${esc(s.phone||"-")}<br><strong>Staff:</strong> ${esc(s.staff)}</p><table style="width:100%"><thead><tr><th>Product</th><th>IMEI / Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>${lines}</tbody></table><div style="text-align:right;margin-top:18px"><p>Subtotal: ₹${s.subtotal.toFixed(2)}</p><p>Discount: ₹${s.discount.toFixed(2)}</p><h3>Grand Total: ₹${s.total.toFixed(2)}</h3><p>Payment: ${esc(s.payment)}</p></div><hr><p style="text-align:center">Thank you for your purchase!</p><small>Computer-generated invoice · GST not included</small></div>`;
+const gstOn=s.invoiceType==="gst",subtotal=Number(s.subtotal||0),discount=Number(s.discount||0);
+let lines=s.items.map(x=>{let p=product(x.productId)||{},rate=Number(x.gstRate??s.defaultGstRate??0),taxable=Math.max(0,Number(x.amount||0)-(subtotal?discount*Number(x.amount||0)/subtotal:0)),tax=gstOn?taxable*rate/100:0;return `<tr><td>${iconMarkup(p.icon)} ${esc(pname(p))}</td><td>${esc(x.imei||x.qty)}</td><td>₹${Number(x.unitPrice).toFixed(2)}</td><td>₹${Number(x.amount).toFixed(2)}</td>${gstOn?`<td>${rate}%</td><td>₹${tax.toFixed(2)}</td>`:""}</tr>`}).join("");
+return `<div class="invoice-paper"><div style="display:flex;justify-content:space-between;gap:20px"><div><h2 style="margin:0;color:#17345d">SHEKH STOCK</h2><p>${gstOn?"GST Invoice":"Non-GST Invoice"}</p>${gstOn?`<p><strong>GSTIN:</strong> ${esc(s.gstin||"")}</p>`:""}</div><div style="text-align:right"><strong>${esc(s.invoiceNo)}</strong><br>${esc(date(s.at))}<br>${esc(s.location)}</div></div><hr><p><strong>Customer:</strong> ${esc(s.customer||"Walk-in Customer")}<br><strong>Mobile:</strong> ${esc(s.phone||"-")}<br><strong>Staff:</strong> ${esc(s.staff)}</p><table style="width:100%"><thead><tr><th>Product</th><th>IMEI / Qty</th><th>Rate</th><th>Amount</th>${gstOn?"<th>GST %</th><th>GST Amount</th>":""}</tr></thead><tbody>${lines}</tbody></table><div style="text-align:right;margin-top:18px"><p>Subtotal: ₹${subtotal.toFixed(2)}</p><p>Discount: ₹${discount.toFixed(2)}</p>${gstOn?`<p>GST: ₹${Number(s.gstAmount||0).toFixed(2)}</p>`:""}<h3>Grand Total: ₹${Number(s.total||0).toFixed(2)}</h3><p>Payment: ${esc(s.payment)}</p></div><hr><p style="text-align:center">Thank you for your purchase!</p><small>Computer-generated ${gstOn?"GST":"Non-GST"} invoice</small></div>`;
 }
 function showInvoice(s){
 $("invoicePreview").innerHTML=invoiceMarkup(s)+`<div class="invoice-actions"><button type="button" onclick="printInvoice('${s.id}')">Print Invoice</button></div>`;
@@ -646,7 +652,7 @@ let loc=activeLocation;
 for(let x of saleCart){if(x.location!==loc)return alert("All invoice items must be from the selected sale location. Clear the invoice and add items again.");let p=product(x.productId);if(!p)return alert("A product is missing");if(p.type==="mobile"){if(!db.devices.some(d=>d.imei===x.imei&&d.location===loc&&d.productId===p.id))return alert("IMEI stock changed. Please refresh invoice items");}else{let stock=db.accessories.find(a=>a.productId===p.id&&a.location===loc)?.qty||0;if(stock<x.qty)return alert("Not enough stock for "+pname(p));}}
 let subtotal=saleCart.reduce((s,x)=>s+x.amount,0),discount=Number($("saleDiscount").value)||0;if(discount<0||discount>subtotal)return alert("Discount cannot exceed subtotal");
 let seq=db.sales.length+1,invoiceNo="SHS-"+new Date().toISOString().slice(0,10).replace(/-/g,"")+"-"+String(seq).padStart(4,"0");
-let sale={id:crypto.randomUUID(),invoiceNo,at:now(),location:loc,staff,customer:$("saleCustomer").value.trim(),phone:$("salePhone").value.trim(),payment:$("salePayment").value,items:saleCart.map(x=>({...x})),subtotal,discount,total:subtotal-discount};
+const invoiceType=$("saleInvoiceType").value,defaultGstRate=Number($("saleGstRate").value||0),gstin=db.locationGstins?.[loc]||"";if(invoiceType==="gst"&&!gstin)return alert("Is shop ka GSTIN add karein: Manage Shops / Godowns mein Add GSTIN option use karein.");if(invoiceType==="gst"&&(!Number.isFinite(defaultGstRate)||defaultGstRate<0||defaultGstRate>100))return alert("Enter a valid GST rate from 0 to 100");let items=saleCart.map(x=>({...x,gstRate:x.gstRate==null?defaultGstRate:Number(x.gstRate)}));let gstAmount=invoiceType==="gst"?calculateSaleGst(items,discount,defaultGstRate):0;let sale={id:crypto.randomUUID(),invoiceNo,at:now(),location:loc,staff,customer:$("saleCustomer").value.trim(),phone:$("salePhone").value.trim(),payment:$("salePayment").value,invoiceType,gstin:invoiceType==="gst"?gstin:"",defaultGstRate,items,subtotal,discount,gstAmount,total:subtotal-discount+gstAmount};
 for(let x of sale.items){let p=product(x.productId);if(p.type==="mobile"){const device=db.devices.find(d=>d.imei===x.imei&&d.location===loc&&d.productId===p.id);if(device?.batchId){const batch=db.batches.find(b=>b.id===device.batchId);if(batch)batch.qty=Math.max(0,Number(batch.qty||0)-1);}db.devices=db.devices.filter(d=>d.imei!==x.imei);}else{let stock=db.accessories.find(a=>a.productId===p.id&&a.location===loc);stock.qty-=x.qty;(x.batchAllocations||[]).forEach(layer=>{const batch=db.batches.find(b=>b.id===layer.batchId);if(batch)batch.qty=Math.max(0,Number(batch.qty||0)-layer.qty);});}const costs=(x.batchAllocations||[]).map(layer=>({batchId:layer.batchId,qty:layer.qty,unitCost:layer.unitCost,costVerified:layer.costVerified}));x.costLayers=costs;x.costOfGoodsSold=costs.every(c=>c.costVerified&&Number(c.unitCost)>0)?costs.reduce((sum,c)=>sum+c.qty*Number(c.unitCost),0):null;x.costVerified=x.costOfGoodsSold!==null;}
 db.sales.push(sale);save();saleCart=[];render();showInvoice(sale);alert("Sale saved successfully. Invoice "+invoiceNo+" has been generated below. Use Print Invoice to print or save as PDF.");
 }
@@ -908,7 +914,7 @@ $("locationForm").onsubmit=e=>{
 e.preventDefault();let name=$("newLocationName").value.trim(),type=$("newLocationType").value;
 if(!name)return alert("Location ka naam likhein");
 if(locations.some(x=>x.toLowerCase()===name.toLowerCase()))return alert("Ye location pehle se maujood hai");
-locations.push(name);db.locations=locations;db.locationTypes[name]=type;save();e.target.reset();render();alert(name+" add ho gaya.");
+let gstin=$("newLocationGstin").value.trim().toUpperCase();if(type==="shop"&&gstin&&!/^[0-9A-Z]{15}$/.test(gstin))return alert("GSTIN must contain exactly 15 letters/numbers");locations.push(name);db.locations=locations;db.locationTypes[name]=type;db.locationGstins=db.locationGstins||{};if(type==="shop"&&gstin)db.locationGstins[name]=gstin;save();e.target.reset();render();alert(name+" add ho gaya.");
 };
 $("adjustProduct").innerHTML=catalogProducts().map(p=>'<option value="'+p.id+'">'+esc(pname(p))+'</option>').join("");
 $("adjustProduct").onchange=syncAdjustment;$("adjustLocation").onchange=syncAdjustmentBatches;$("adjustAccessoryAction").onchange=syncAdjustmentBatches;$("adjustBatchMethod").onchange=syncAdjustmentBatches;$("adjustBatchScan").onchange=()=>{const code=$("adjustBatchScan").value.trim(),b=db.batches.find(x=>x.productId===$("adjustProduct").value&&x.location===$("adjustLocation").value&&x.barcode===code&&Number(x.qty)>0);if(!b){alert("Batch barcode not found at this location");return;} $("adjustBatchSelect").value=b.id;$("adjustBatchMethod").value="manual";syncAdjustmentBatches();$("adjustBatchSelect").value=b.id;};
@@ -950,10 +956,11 @@ let type=$("pType").value,name=$("pName").value.trim(),category=$("pCategory").v
 if(db.products.some(p=>barcode&&p.barcode.toLowerCase()===barcode.toLowerCase()))return alert("Barcode already exists");
 let salePrice=Number($("pSalePrice").value);
 if(!Number.isFinite(salePrice)||salePrice<0)return alert("Enter a valid sale price");
+let gstRaw=$("pGstRate").value.trim(),gstRate=gstRaw===""?null:Number(gstRaw);if(gstRate!==null&&(!Number.isFinite(gstRate)||gstRate<0||gstRate>100))return alert("GST rate must be between 0 and 100");
 let purchaseRaw=$("pPurchasePrice").value.trim(),purchasePrice=purchaseRaw===""?null:Number(purchaseRaw);
 if(purchasePrice!==null&&(!Number.isFinite(purchasePrice)||purchasePrice<0))return alert("Enter a valid purchase price");
 let minStock=Number($("pMinStock").value||0);if(!Number.isInteger(minStock)||minStock<0)return alert("Minimum stock must be zero or a positive whole number");
-let selectedIcon=$("pIcon").value,customIcon=$("pCustomIcon").value.trim();if(selectedIcon==="custom"&&!customIcon)return alert("Apna emoji icon enter karein");let p={id:Date.now().toString(),type,name,brand:$("pBrand").value.trim(),model:$("pModel").value.trim(),category,barcode,icon:selectedIcon==="custom"?customIcon:selectedIcon,salePrice,purchasePrice,minStock,createdLocation:createdAtLocation,catalogLocations:[createdAtLocation]};
+let selectedIcon=$("pIcon").value,customIcon=$("pCustomIcon").value.trim();if(selectedIcon==="custom"&&!customIcon)return alert("Apna emoji icon enter karein");let p={id:Date.now().toString(),type,name,brand:$("pBrand").value.trim(),model:$("pModel").value.trim(),category,barcode,icon:selectedIcon==="custom"?customIcon:selectedIcon,salePrice,purchasePrice,gstRate,minStock,createdLocation:createdAtLocation,catalogLocations:[createdAtLocation]};
 let imeis=$("pImeis").value.split(/[\n,]+/).map(x=>x.trim()).filter(Boolean);
 if(type==="mobile"){
 if(imeis.some(x=>!/^\d{15}$/.test(x)))return alert("Every IMEI must be 15 digits");
