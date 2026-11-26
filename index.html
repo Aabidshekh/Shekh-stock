@@ -688,14 +688,23 @@ if(choice.trim()){let n=Number(choice);if(!Number.isInteger(n)||n<1||n>shops.len
 let raw=prompt("How many replacement items received? Pending: "+pending);if(raw===null)return;
 let qty=Number(raw);if(!Number.isInteger(qty)||qty<1||qty>pending)return alert("Enter a valid quantity up to "+pending);
 let p=product(d.productId);
+let costRaw=prompt("Replacement item ki actual per-unit cost (₹) enter karein. Cost maloom nahi hai to blank chhodein; cost unverified rahegi.");
+if(costRaw===null)return;
+let replacementCost=costRaw.trim()===""?null:Number(costRaw);
+if(replacementCost!==null&&(!Number.isFinite(replacementCost)||replacementCost<0))return alert("Valid replacement cost enter karein ya blank chhodein.");
 if(p.type==="mobile"){
 let rawImeis=prompt("Enter "+qty+" NEW replacement IMEI(s), one per line (15 digits):");if(rawImeis===null)return;
 let arr=rawImeis.split(/[\n,]+/).map(x=>x.trim()).filter(Boolean);
 if(arr.length!==qty||arr.some(x=>!/^[0-9]{15}$/.test(x))||new Set(arr).size!==arr.length||arr.some(x=>db.devices.some(v=>v.imei===x)))return alert("Enter exactly "+qty+" unique, unused 15-digit IMEI(s)");
-arr.forEach(imei=>db.devices.push({id:crypto.randomUUID(),productId:p.id,imei,location:destination}));
+arr.forEach(imei=>{const batchId=crypto.randomUUID(),verified=replacementCost!==null&&replacementCost>0;db.batches.push({id:batchId,productId:p.id,location:destination,qty:1,unitCost:verified?replacementCost:null,source:"replacement",costVerified:verified,barcode:imei,createdAt:new Date().toISOString(),replacementForDamageId:d.id});db.devices.push({id:crypto.randomUUID(),productId:p.id,imei,location:destination,batchId,unitCost:verified?replacementCost:null,costVerified:verified});});
 d.replacementImeis.push(...arr);
-}else{let stock=db.accessories.find(a=>a.productId===p.id&&a.location===destination);if(stock)stock.qty+=qty;else db.accessories.push({productId:p.id,location:destination,qty});}
-d.replacementReceived+=qty;d.replacementLocations=d.replacementLocations||[];d.replacementLocations.push({location:destination,qty,at:now()});
+}else{
+let stock=db.accessories.find(a=>a.productId===p.id&&a.location===destination);if(!stock){stock={productId:p.id,location:destination,qty:0,batchIds:[]};db.accessories.push(stock);}
+const batch=addAccessoryBatch(p.id,destination,qty,replacementCost,"replacement");stock.qty+=qty;stock.batchIds=stock.batchIds||[];if(!stock.batchIds.includes(batch.id))stock.batchIds.push(batch.id);
+}
+p.catalogLocations=p.catalogLocations||[];if(!p.catalogLocations.includes(destination))p.catalogLocations.push(destination);
+db.categoryLocations=db.categoryLocations||{};db.categoryLocations[p.category]=db.categoryLocations[p.category]||[];if(!db.categoryLocations[p.category].includes(destination))db.categoryLocations[p.category].push(destination);
+d.replacementReceived+=qty;d.replacementLocations=d.replacementLocations||[];d.replacementLocations.push({location:destination,qty,unitCost:replacementCost,costVerified:replacementCost!==null&&replacementCost>0,at:now()});
 let left=d.qty-d.replacementReceived-d.lossQty;d.status=left===0?(d.lossQty>0?"Closed - Partial Replacement / Loss":"Replacement Received"):"Partially Received";
 save();render();alert(qty+" replacement item(s) added to "+destination+" stock.");
 }
