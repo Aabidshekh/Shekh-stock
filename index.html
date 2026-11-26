@@ -274,7 +274,7 @@ let barcodeSeed=Date.now();
 db.products.forEach(p=>{if(p.type==="accessory"&&!p.category&&p.model){p.category=p.model;p.model="";}if(p.type==="mobile"&&!p.category)p.category="Mobile";if(p.type==="accessory"&&!p.barcode){let candidate;do{candidate="SHK"+String(barcodeSeed++).slice(-10);}while(db.products.some(x=>x!==p&&x.barcode===candidate));p.barcode=candidate;}});
 const defaultCategories=["Mobile","Charger","Earphone","Cable","Cover","Tempered Glass","Battery","Power Bank","Speaker","Watch","Other Accessories"];
 if(!Array.isArray(db.categories))db.categories=[];
-db.categories=[...new Set([...defaultCategories,...db.categories,...db.products.map(productCategory)].map(x=>String(x||"").trim()).filter(Boolean))];
+db.categories=[...new Set([...defaultCategories,...db.categories,...db.products.map(p=>String(p.category||"Uncategorized"))].map(x=>String(x||"").trim()).filter(Boolean))];
 save();
 const esc=s=>String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const product=id=>db.products.find(p=>p.id===id);
