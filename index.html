@@ -109,7 +109,7 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <div class="panel"><h3>Manage Products</h3><p class="muted">Yahan se product details edit karein. Delete sirf tab hoga jab product ka stock zero ho aur uska koi transaction history record na ho.</p><input id="manageProductSearch" placeholder="Search product, brand, model or barcode" oninput="renderProductManager()"><div class="tablewrap"><table><thead><tr><th>Icon</th><th>Product</th><th>Category</th><th>Type</th><th>Total Stock</th><th>Barcode / SKU</th><th>Action</th></tr></thead><tbody id="productManageRows"></tbody></table></div></div>
 <div class="panel" id="productEditPanel" style="display:none"><h3>Edit Product</h3><form id="productEditForm"><input id="editProductId" type="hidden"><label>Product Name</label><input id="editProductName" required maxlength="100"><div class="row"><div><label>Brand</label><input id="editProductBrand"></div><div><label>Model / Category</label><input id="editProductModel"></div></div><div class="row"><div><label>Selling Price (₹)</label><input id="editProductSalePrice" type="number" min="0" step="0.01" required></div><div><label>Purchase Price (₹)</label><input id="editProductPurchasePrice" type="number" min="0" step="0.01"></div></div><div class="row"><div><label>Minimum Stock Alert</label><input id="editProductMinStock" type="number" min="0" step="1"></div><div><label>Barcode / SKU</label><input id="editProductBarcode" maxlength="80"></div></div><label>Category</label><input id="editProductCategory" list="productCategoryOptions" required><label>Product Icon</label><select id="editProductIcon" onchange="toggleEditCustomIcon()"><option value="phone">Mobile phone</option><option value="charger">Fast charger / adapter</option><option value="earbuds">Earbuds / headphones</option><option value="battery">Battery / power bank</option><option value="box">Accessories / other</option><option value="case">Cover / glass</option><option value="watch">Smartwatch</option><option value="laptop">Laptop / tablet</option><option value="parts">Repair parts</option><option value="gadget">Gadget</option><option value="custom">Other — choose your own emoji</option></select><div id="editCustomIconWrap" style="display:none"><label>Choose Your Icon (Emoji)</label><input id="editCustomIcon" maxlength="8" placeholder="e.g. 🖨️ 💡 🎮 🔊"></div><button type="submit">Save Changes</button> <button type="button" class="secondary" onclick="cancelProductEdit()">Cancel</button></form></div>
 <div class="panel">
-<div class="row"><div><label>Search Product / IMEI</label><input id="productSearch" placeholder="Search product, barcode or IMEI" oninput="renderProducts()"></div><div><label>Filter by Category</label><select id="productCategoryFilter" onchange="renderProducts()"><option value="All Categories">All Categories</option></select><button type="button" class="secondary" style="margin-top:8px" onclick="deleteUnusedCategory()">Delete Empty Category</button></div></div>
+<div class="row"><div><label>Search Product / IMEI</label><input id="productSearch" placeholder="Search product, barcode or IMEI" oninput="renderProducts()"></div><div><label>Filter by Category</label><select id="productCategoryFilter" onchange="renderProducts()"><option value="All Categories">All Categories</option></select><button type="button" class="secondary" style="margin-top:8px" onclick="deleteUnusedCategory()">Delete Category</button></div></div>
 <div class="tablewrap"><table><thead><tr><th>Icon</th><th>Product</th><th>Type</th><th>IMEI / Barcode</th><th>Location</th><th>Stock</th><th>Sale Price</th></tr></thead><tbody id="productRows"></tbody></table></div>
 </div>
 </section>
@@ -592,13 +592,17 @@ const category=$("editProductCategory").value.trim();if(!category)return alert("
 save();cancelProductEdit();render();alert("Product details update ho gayi hain.");
 };
 function deleteUnusedCategory(){
-const unused=db.categories.filter(c=>!db.products.some(p=>productCategory(p)===c));
-if(!unused.length)return alert("Abhi koi empty category nahi hai. Pehle us category ke products ko doosri category mein edit ya delete karein.");
-const choice=prompt("Kaunsi empty category delete karni hai?\\n"+unused.map((c,i)=>(i+1)+". "+c).join("\\n")+"\\nNumber enter karein:");
-if(choice===null)return;
-const n=Number(choice);if(!Number.isInteger(n)||n<1||n>unused.length)return alert("Sahi category number enter karein.");
-const category=unused[n-1];if(!confirm(category+" category delete karni hai?"))return;
-db.categories=db.categories.filter(c=>c!==category);save();render();alert(category+" category delete ho gayi.");
+const deletable=db.categories.filter(c=>{
+const items=db.products.filter(p=>productCategory(p)===c);
+return items.every(p=>p.type==="mobile"?!db.devices.some(d=>d.productId===p.id):!db.accessories.some(a=>a.productId===p.id&&Number(a.qty||0)>0));
+});
+if(!deletable.length)return alert("Jis category mein stock hai use delete karne se pehle stock transfer ya zero karein.");
+const choice=prompt("Kaunsi zero-stock category delete karni hai?\n"+deletable.map((c,i)=>(i+1)+". "+c).join("\n")+"\nNumber enter karein:");
+if(choice===null)return;const n=Number(choice);if(!Number.isInteger(n)||n<1||n>deletable.length)return alert("Sahi category number enter karein.");
+const category=deletable[n-1];if(!confirm(category+" category delete karni hai? Iske products Uncategorized mein chale jayenge."))return;
+db.products.filter(p=>productCategory(p)===category).forEach(p=>p.category="Uncategorized");
+db.categories=db.categories.filter(c=>c!==category);if(!db.categories.includes("Uncategorized"))db.categories.push("Uncategorized");
+save();render();alert(category+" category delete ho gayi. Iske products Uncategorized mein move kar diye gaye.");
 }
 function toggleProductCategory(category){
 if(expandedProductCategories.has(category))expandedProductCategories.delete(category);else expandedProductCategories.add(category);
