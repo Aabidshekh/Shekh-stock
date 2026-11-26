@@ -517,8 +517,49 @@ $("damageMobile").style.display=mobile?"block":"none";
 $("damageAccessory").style.display=mobile?"none":"block";
 $("damageImei").innerHTML=db.devices.filter(d=>d.productId===p?.id&&d.location===loc).map(d=>'<option value="'+d.id+'">'+esc(d.imei)+'</option>').join("");
 }
-function addDamageRecord({productId,location,qty,imeis=[],company="",reason="",source="damage"}){
-db.damages.push({id:crypto.randomUUID(),productId,location,qty,imeis:[...imeis],company,reason,source,at:now(),replacementReceived:0,replacementImeis:[],lossQty:0,status:"Pending"});
+
+function ensureDeviceBatch(device){
+ if(device.batchId&&db.batches.some(b=>b.id===device.batchId))return db.batches.find(b=>b.id===device.batchId);
+ const id=crypto.randomUUID(),cost=device.unitCost!=null?Number(device.unitCost):null;
+ const batch={id,productId:device.productId,location:device.location,qty:1,unitCost:Number.isFinite(cost)&&cost>0?cost:null,source:"legacy-untracked",costVerified:!!device.costVerified&&Number.isFinite(cost)&&cost>0,barcode:device.imei,createdAt:new Date().toISOString(),legacy:true};
+ db.batches.push(batch);device.batchId=id;device.unitCost=batch.unitCost;device.costVerified=batch.costVerified;return batch;
+}
+function ensureAccessoryBatchCoverage(productId,location){
+ const stock=db.accessories.find(a=>a.productId===productId&&a.location===location),total=Number(stock?.qty||0);
+ const covered=db.batches.filter(b=>b.productId===productId&&b.location===location).reduce((n,b)=>n+Math.max(0,Number(b.qty||0)),0);
+ const missing=Math.max(0,total-covered);
+ if(missing>0){const id=crypto.randomUUID();db.batches.push({id,productId,location,qty:missing,unitCost:null,source:"legacy-untracked",costVerified:false,barcode:"SHB"+crypto.randomUUID().replace(/-/g,"").slice(0,12).toUpperCase(),createdAt:new Date().toISOString(),legacy:true});if(stock){stock.batchIds=stock.batchIds||[];stock.batchIds.push(id);}}
+}
+function consumeAccessoryBatches(productId,location,qty){
+ ensureAccessoryBatchCoverage(productId,location);
+ let remaining=qty;const allocations=[];
+ const layers=db.batches.filter(b=>b.productId===productId&&b.location===location&&Number(b.qty)>0).sort((a,b)=>String(a.createdAt||"").localeCompare(String(b.createdAt||"")));
+ for(const b of layers){if(remaining<=0)break;const take=Math.min(remaining,Number(b.qty));b.qty-=take;allocations.push({batchId:b.id,qty:take,unitCost:b.unitCost??null,costVerified:!!b.costVerified});remaining-=take;}
+ if(remaining>0)throw new Error("Batch quantity does not match available stock");
+ return allocations;
+}
+function addAccessoryBatch(productId,location,qty,unitCost=null,source="stock-in"){
+ const id=crypto.randomUUID(),cost=unitCost==null?null:Number(unitCost),verified=Number.isFinite(cost)&&cost>0;
+ const batch={id,productId,location,qty,unitCost:verified?cost:null,source,costVerified:verified,barcode:"SHB"+crypto.randomUUID().replace(/-/g,"").slice(0,12).toUpperCase(),createdAt:new Date().toISOString()};
+ db.batches.push(batch);const stock=db.accessories.find(a=>a.productId===productId&&a.location===location);if(stock){stock.batchIds=stock.batchIds||[];stock.batchIds.push(id);}return batch;
+}
+function moveAccessoryBatches(productId,from,to,qty){
+ const allocations=consumeAccessoryBatches(productId,from,qty),moved=[];
+ allocations.forEach(layer=>{const source=db.batches.find(b=>b.id===layer.batchId),id=crypto.randomUUID();const copy={...source,id,location:to,qty:layer.qty,barcode:"SHB"+crypto.randomUUID().replace(/-/g,"").slice(0,12).toUpperCase(),source:"transfer",transferredFromBatchId:source.id,createdAt:new Date().toISOString()};db.batches.push(copy);moved.push({sourceBatchId:source.id,batchId:id,qty:layer.qty,unitCost:layer.unitCost,costVerified:layer.costVerified});});
+ return moved;
+}
+function restoreReturnedCostLayers(productId,location,qty,costLayers,source="customer-return"){
+ let remaining=qty;const created=[];
+ for(const layer of (costLayers||[])){if(remaining<=0)break;const take=Math.min(remaining,Number(layer.qty||0));if(!take)continue;const cost=layer.unitCost==null?null:Number(layer.unitCost),verified=!!layer.costVerified&&Number.isFinite(cost)&&cost>0,id=crypto.randomUUID();db.batches.push({id,productId,location,qty:take,unitCost:verified?cost:null,source, costVerified:verified,barcode:"SHB"+crypto.randomUUID().replace(/-/g,"").slice(0,12).toUpperCase(),createdAt:new Date().toISOString(),returnedFromBatchId:layer.batchId||null});created.push({batchId:id,qty:take,unitCost:verified?cost:null,costVerified:verified});remaining-=take;}
+ if(remaining>0){const b=addAccessoryBatch(productId,location,remaining,null,source);created.push({batchId:b.id,qty:remaining,unitCost:null,costVerified:false});}
+ const stock=db.accessories.find(a=>a.productId===productId&&a.location===location);if(stock){stock.batchIds=stock.batchIds||[];created.forEach(x=>{if(!stock.batchIds.includes(x.batchId))stock.batchIds.push(x.batchId);});}
+ return created;
+}
+
+function addDamageRecord({productId,location,qty,imeis=[],company="",reason="",source="damage",costLayers=[]}){
+const verified=costLayers.length&&costLayers.every(x=>x.costVerified&&Number(x.unitCost)>0);
+const lossValue=verified?costLayers.reduce((sum,x)=>sum+Number(x.qty)*Number(x.unitCost),0):null;
+db.damages.push({id:crypto.randomUUID(),productId,location,qty,imeis:[...imeis],company,reason,source,costLayers,lossValue,costVerified:!!verified,at:now(),replacementReceived:0,replacementImeis:[],lossQty:0,status:"Pending"});
 }
 function syncSale(){
 $("saleLocation").value=activeLocation;
@@ -933,14 +974,14 @@ let ids=Array.from($("damageImei").selectedOptions).map(o=>o.value);
 if(!ids.length)return alert("Select at least one damaged IMEI");
 let devices=ids.map(id=>db.devices.find(d=>d.id===id&&d.productId===p.id&&d.location===loc));
 if(devices.some(d=>!d))return alert("One or more IMEIs are no longer available");
-let imeis=devices.map(d=>d.imei);
+let imeis=devices.map(d=>d.imei),costLayers=devices.map(d=>{const b=ensureDeviceBatch(d);b.qty=Math.max(0,Number(b.qty||0)-1);return {batchId:b.id,qty:1,unitCost:b.unitCost,costVerified:b.costVerified};});
 db.devices=db.devices.filter(d=>!ids.includes(d.id));
-addDamageRecord({productId:p.id,location:loc,qty:ids.length,imeis,company,reason});
+addDamageRecord({productId:p.id,location:loc,qty:ids.length,imeis,company,reason,costLayers});
 }else{
 let qty=Number($("damageQty").value),stock=db.accessories.find(a=>a.productId===p.id&&a.location===loc);
 if(!Number.isInteger(qty)||qty<1||!stock||stock.qty<qty)return alert("Not enough stock at selected location");
-stock.qty-=qty;
-addDamageRecord({productId:p.id,location:loc,qty,company,reason});
+const costLayers=consumeAccessoryBatches(p.id,loc,qty);stock.qty-=qty;
+addDamageRecord({productId:p.id,location:loc,qty,company,reason,costLayers});
 }
 save();e.target.reset();syncDamage();render();alert("Damage recorded. Items removed from usable stock.");
 };
@@ -951,10 +992,11 @@ let arr=$("stockImeis").value.split(/[\n,]+/).map(x=>x.trim()).filter(Boolean);
 if(!arr.length)return alert("Enter IMEI");
 if(arr.some(x=>!/^\d{15}$/.test(x)))return alert("IMEI must be 15 digits");
 if(new Set(arr).size!==arr.length||arr.some(x=>db.devices.some(d=>d.imei===x)))return alert("Duplicate IMEI found");
-arr.forEach(imei=>db.devices.push({id:crypto.randomUUID(),productId:p.id,imei,location:loc}));
+arr.forEach(imei=>{const d={id:crypto.randomUUID(),productId:p.id,imei,location:loc};db.devices.push(d);ensureDeviceBatch(d);});
 }else{
 let qty=Number($("stockQty").value);if(!Number.isInteger(qty)||qty<1)return alert("Enter valid quantity");
 let a=db.accessories.find(x=>x.productId===p.id&&x.location===loc);if(a)a.qty+=qty;else db.accessories.push({productId:p.id,location:loc,qty});
+addAccessoryBatch(p.id,loc,qty,null,"stock-in");
 }
 save();e.target.reset();render();alert("Stock added");
 };
@@ -985,12 +1027,13 @@ if(!p)return alert("Product not found");
 let t={id:crypto.randomUUID(),productId:p.id,location:loc,staff,note,at:now(),method,qty};
 if(p.type==="mobile"){
 if(!device)return alert("IMEI not available");
-db.devices=db.devices.filter(d=>d.id!==device.id);t.imei=imei;t.qty=1;
+const batch=ensureDeviceBatch(device);t.imei=imei;t.qty=1;t.costLayers=[{batchId:batch.id,qty:1,unitCost:batch.unitCost,costVerified:batch.costVerified}];batch.qty=Math.max(0,Number(batch.qty||0)-1);
+db.devices=db.devices.filter(d=>d.id!==device.id);
 }else{
 let stock=db.accessories.find(a=>a.productId===p.id&&a.location===loc);
 if(!Number.isInteger(qty)||qty<1)return alert("Enter a valid quantity");
 if(!stock||stock.qty<qty)return alert("Not enough stock at selected location");
-stock.qty-=qty;
+t.costLayers=consumeAccessoryBatches(p.id,loc,qty);stock.qty-=qty;
 }
 db.stockOuts.push(t);save();e.target.reset();$("outMethod").value="scan";$("outScanCode").dataset.kind="";$("outScanAccessoryQty").style.display="none";syncOut();render();alert("Stock out completed successfully");
 };
