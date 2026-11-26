@@ -256,7 +256,7 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <div class="row"><div><label>Customer Name (optional)</label><input id="saleCustomer" placeholder="Customer name"></div><div><label>Customer Mobile (optional)</label><input id="salePhone" placeholder="Mobile number"></div></div>
 <label>Product</label><select id="saleProduct"></select><div id="saleProductIcon" class="sale-product-icon"></div>
 <div id="saleMobileFields"><label>Select IMEI</label><select id="saleImei"></select></div>
-<div id="saleAccessoryFields" style="display:none"><label>Quantity</label><input id="saleQty" type="number" min="1" value="1"></div>
+<div id="saleAccessoryFields" style="display:none"><label>Quantity</label><input id="saleQty" type="number" min="1" value="1"><label>Batch Selection</label><select id="saleBatchSelect"><option value="">Automatic FIFO (oldest batch first)</option></select><p class="muted">Barcode/manual batch select karne par selected batch pehle use hoga; baaki quantity FIFO se adjust hogi.</p></div>
 <label>Unit Sale Price (₹)</label><input id="saleUnitPrice" type="number" min="0" step="0.01" value="0">
 <div class="row"><div><label>Available Stock</label><div id="saleAvailable" class="card">Select a product</div></div><div><label>Current Item Amount</label><div id="saleLineAmount" class="card">₹0.00</div></div></div>
 <button type="button" onclick="addSaleItem()">＋ Add Product to Bill</button>
@@ -530,10 +530,10 @@ function ensureAccessoryBatchCoverage(productId,location){
  const missing=Math.max(0,total-covered);
  if(missing>0){const id=crypto.randomUUID();db.batches.push({id,productId,location,qty:missing,unitCost:null,source:"legacy-untracked",costVerified:false,barcode:"SHB"+crypto.randomUUID().replace(/-/g,"").slice(0,12).toUpperCase(),createdAt:new Date().toISOString(),legacy:true});if(stock){stock.batchIds=stock.batchIds||[];stock.batchIds.push(id);}}
 }
-function consumeAccessoryBatches(productId,location,qty){
+function consumeAccessoryBatches(productId,location,qty,preferredBatchId=null){
  ensureAccessoryBatchCoverage(productId,location);
  let remaining=qty;const allocations=[];
- const layers=db.batches.filter(b=>b.productId===productId&&b.location===location&&Number(b.qty)>0).sort((a,b)=>String(a.createdAt||"").localeCompare(String(b.createdAt||"")));
+ const layers=db.batches.filter(b=>b.productId===productId&&b.location===location&&Number(b.qty)>0).sort((a,b)=>{if(a.id===preferredBatchId)return -1;if(b.id===preferredBatchId)return 1;return String(a.createdAt||"").localeCompare(String(b.createdAt||""));});
  for(const b of layers){if(remaining<=0)break;const take=Math.min(remaining,Number(b.qty));b.qty-=take;allocations.push({batchId:b.id,qty:take,unitCost:b.unitCost??null,costVerified:!!b.costVerified});remaining-=take;}
  if(remaining>0)throw new Error("Batch quantity does not match available stock");
  return allocations;
@@ -569,7 +569,15 @@ $("saleAccessoryFields").style.display=mobile?"none":"block";
 $("saleUnitPrice").value=p?Number(p.salePrice||0):0;
 $("saleProductIcon").innerHTML=p?iconMarkup(p.icon)+" <span class=muted>"+esc(pname(p))+"</span>":"";
 $("saleImei").innerHTML=db.devices.filter(d=>d.productId===p?.id&&d.location===loc).map(d=>`<option value="${d.id}">${d.imei}</option>`).join("");
+renderSaleBatchOptions();
 updateSalePreview();
+}
+function renderSaleBatchOptions(){
+ const select=$("saleBatchSelect");if(!select)return;
+ const p=product($("saleProduct").value),loc=activeLocation,previous=select.value;
+ const batches=p&&p.type==="accessory"?db.batches.filter(b=>b.productId===p.id&&b.location===loc&&Number(b.qty)>0).sort((a,b)=>String(a.createdAt||"").localeCompare(String(b.createdAt||""))):[];
+ select.innerHTML='<option value="">Automatic FIFO (oldest batch first)</option>'+batches.map(b=>'<option value="'+esc(b.id)+'">'+esc(b.barcode||"Batch")+' · '+Number(b.qty)+' units · '+(b.unitCost!=null?'Cost ₹'+Number(b.unitCost).toFixed(2):'Cost unverified')+'</option>').join("");
+ if(batches.some(b=>b.id===previous))select.value=previous;
 }
 function updateSalePreview(){
 $("saleLocation").value=activeLocation;
@@ -589,8 +597,8 @@ let price=Number($("saleUnitPrice").value);if(!Number.isFinite(price)||price<0)r
 let batchAllocations=[];
 if(p.type==="mobile"){const b=db.batches.find(x=>x.id===device.batchId);batchAllocations=[{batchId:b?.id||null,qty:1,unitCost:device.unitCost??b?.unitCost??null,costVerified:device.costVerified??b?.costVerified??false}];}
 else{
-let remaining=qty;
-let layers=db.batches.filter(b=>b.productId===p.id&&b.location===loc&&Number(b.qty)>0).sort((a,b)=>String(a.createdAt||"").localeCompare(String(b.createdAt||"")));
+let remaining=qty,preferredBatchId=$("saleBatchSelect")?.value||null;
+const layers=db.batches.filter(b=>b.productId===p.id&&b.location===loc&&Number(b.qty)>0).sort((a,b)=>{if(a.id===preferredBatchId)return -1;if(b.id===preferredBatchId)return 1;return String(a.createdAt||"").localeCompare(String(b.createdAt||""));});
 for(const b of layers){if(remaining<=0)break;const take=Math.min(remaining,Number(b.qty));batchAllocations.push({batchId:b.id,qty:take,unitCost:b.unitCost,costVerified:!!b.costVerified});remaining-=take;}
 if(remaining>0){const legacyId=crypto.randomUUID();db.batches.push({id:legacyId,productId:p.id,location:loc,qty:remaining,unitCost:null,source:"legacy-untracked",costVerified:false,barcode:"",createdAt:new Date().toISOString(),legacy:true});batchAllocations.push({batchId:legacyId,qty:remaining,unitCost:null,costVerified:false});}
 }
@@ -861,8 +869,10 @@ $("saleQty").addEventListener("input",updateSalePreview);$("saleUnitPrice").addE
 $("outMethod").onchange=syncOut;$("outProduct").onchange=syncOut;$("outLocation").onchange=syncOut;
 $("outScanCode").addEventListener("input",()=>{
 let code=$("outScanCode").value.trim(),p=db.products.find(x=>x.barcode&&x.barcode.toLowerCase()===code.toLowerCase());
-$("outScanCode").dataset.kind=p&&p.type==="accessory"?"accessory":"";
-$("outScanAccessoryQty").style.display=p&&p.type==="accessory"?"block":"none";
+const batch=db.batches.find(b=>b.barcode&&b.barcode.toLowerCase()===code.toLowerCase()&&b.location===$("outLocation").value&&Number(b.qty)>0);
+$("outScanCode").dataset.kind=(p&&p.type==="accessory")||batch?"accessory":"";
+$("outScanCode").dataset.batchId=batch?.id||"";
+$("outScanAccessoryQty").style.display=((p&&p.type==="accessory")||batch)?"block":"none";
 });
 $("locationForm").onsubmit=e=>{
 e.preventDefault();let name=$("newLocationName").value.trim(),type=$("newLocationType").value;
@@ -1011,8 +1021,10 @@ if(/^\d{15}$/.test(code)){
 device=db.devices.find(d=>d.imei===code&&d.location===loc);if(!device)return alert("This IMEI is not available at the selected location");
 p=product(device.productId);imei=device.imei;
 }else{
-p=db.products.find(x=>x.type==="accessory"&&x.barcode&&x.barcode.toLowerCase()===code.toLowerCase());
-if(!p)return alert("Barcode not found. Check product barcode or use Manual Entry");
+const scannedBatch=db.batches.find(b=>b.barcode&&b.barcode.toLowerCase()===code.toLowerCase()&&b.location===loc&&Number(b.qty)>0);
+p=scannedBatch?product(scannedBatch.productId):db.products.find(x=>x.type==="accessory"&&x.barcode&&x.barcode.toLowerCase()===code.toLowerCase());
+if(!p)return alert("Barcode not found. Check product/batch barcode or use Manual Entry");
+$("outScanCode").dataset.batchId=scannedBatch?.id||"";
 qty=Number($("outScanQty").value);
 }
 }else{
@@ -1033,7 +1045,7 @@ db.devices=db.devices.filter(d=>d.id!==device.id);
 let stock=db.accessories.find(a=>a.productId===p.id&&a.location===loc);
 if(!Number.isInteger(qty)||qty<1)return alert("Enter a valid quantity");
 if(!stock||stock.qty<qty)return alert("Not enough stock at selected location");
-t.costLayers=consumeAccessoryBatches(p.id,loc,qty);stock.qty-=qty;
+t.costLayers=consumeAccessoryBatches(p.id,loc,qty,$("outScanCode").dataset.batchId||null);stock.qty-=qty;
 }
 db.stockOuts.push(t);save();e.target.reset();$("outMethod").value="scan";$("outScanCode").dataset.kind="";$("outScanAccessoryQty").style.display="none";syncOut();render();alert("Stock out completed successfully");
 };
