@@ -626,7 +626,7 @@ renderProducts();
 }
 function renderProducts(){
 if(!$("productRows"))return;
-const loc=$("locationFilter").value,visibleLocs=isGodownView()?locations:[activeLocation],q=($("productSearch").value||"").toLowerCase(),selectedCategory=$("productCategoryFilter")?.value||"All Categories",groups=new Map();
+const loc=activeLocation,visibleLocs=[activeLocation],q=($("productSearch").value||"").toLowerCase(),selectedCategory=$("productCategoryFilter")?.value||"All Categories",groups=new Map();
 const allCategories=[...new Set([...db.categories,...db.products.map(productCategory)])].sort((x,y)=>x.localeCompare(y));
 allCategories.filter(c=>selectedCategory==="All Categories"||c===selectedCategory).forEach(c=>groups.set(c,[]));
 db.products.forEach(p=>{
