@@ -990,19 +990,19 @@ let record={id:crypto.randomUUID(),type:"customer",productId:p.id,location:loc,c
 if(p.type==="mobile"){
 let imei=$("customerReturnImei").value.trim();
 if(!/^\d{15}$/.test(imei))return alert("Enter a valid 15-digit IMEI");
-if(!findSoldMobileByIMEI(imei))return alert("This IMEI was not found in Sales History. Use Find IMEI first.");
+const soldReturn=findSoldMobileByIMEI(imei);if(!soldReturn)return alert("This IMEI was not found in Sales History. Use Find IMEI first.");
 if(db.returns.some(r=>r.type==="customer"&&r.imei===imei))return alert("This IMEI has already been returned");
 if(db.devices.some(d=>d.imei===imei))return alert("This IMEI is already in usable stock");
 record.imei=imei;record.qty=1;
 if(condition==="good"){const sold=findSoldMobileByIMEI(imei),soldLayers=sold?.item?.costLayers||[];const layer=soldLayers[0]||{unitCost:sold?.item?.costOfGoodsSold??null,costVerified:!!sold?.item?.costVerified};const batchId=crypto.randomUUID(),cost=layer.unitCost==null?null:Number(layer.unitCost),verified=!!layer.costVerified&&Number.isFinite(cost)&&cost>0;db.batches.push({id:batchId,productId:p.id,location:loc,qty:1,unitCost:verified?cost:null,source:"customer-return",costVerified:verified,barcode:imei,createdAt:new Date().toISOString(),returnedFromBatchId:layer.batchId||null});db.devices.push({id:crypto.randomUUID(),productId:p.id,imei,location:loc,batchId,unitCost:verified?cost:null,costVerified:verified});record.costLayers=[{batchId,qty:1,unitCost:verified?cost:null,costVerified:verified}];}
-else addDamageRecord({productId:p.id,location:loc,qty:1,imeis:[imei],company:"",reason:"Customer returned damaged item",source:"customer-return"});
+else{const soldLayers=soldReturn.item?.costLayers||[];const fallback=soldReturn.item?.costOfGoodsSold;const damageLayers=soldLayers.length?soldLayers:[{batchId:null,qty:1,unitCost:fallback??null,costVerified:!!soldReturn.item?.costVerified}];addDamageRecord({productId:p.id,location:loc,qty:1,imeis:[imei],company:"",reason:"Customer returned damaged item",source:"customer-return",costLayers:damageLayers});}
 }else{
 let qty=Number($("customerReturnQty").value);if(!Number.isInteger(qty)||qty<1)return alert("Enter a valid return quantity");
 record.qty=qty;
 if(condition==="good"){let a=db.accessories.find(x=>x.productId===p.id&&x.location===loc);if(a)a.qty+=qty;else db.accessories.push({productId:p.id,location:loc,qty});const batchAllocations=restoreReturnedCostLayers(p.id,loc,qty,[],"customer-return");record.batchAllocations=batchAllocations;}
 else addDamageRecord({productId:p.id,location:loc,qty,company:"",reason:"Customer returned damaged item",source:"customer-return"});
 }
-db.returns.push(record);
+p.catalogLocations=p.catalogLocations||[];if(!p.catalogLocations.includes(loc))p.catalogLocations.push(loc);db.categoryLocations=db.categoryLocations||{};db.categoryLocations[p.category]=db.categoryLocations[p.category]||[];if(!db.categoryLocations[p.category].includes(loc))db.categoryLocations[p.category].push(loc);db.returns.push(record);
 }else{
 let p=product($("shopReturnProduct").value),from=$("shopReturnFrom").value,to="Main Godown",staff=$("shopReturnStaff").value.trim();
 if(!p)return alert("Select a product");
