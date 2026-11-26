@@ -487,7 +487,15 @@ let qty=1,device=null,imei="";
 if(p.type==="mobile"){device=db.devices.find(d=>d.id===$("saleImei").value&&d.productId===p.id&&d.location===loc);if(!device)return alert("No available IMEI at this location");imei=device.imei;if(saleCart.some(x=>x.imei===imei))return alert("This IMEI is already in the invoice");}
 else{qty=Number($("saleQty").value);let available=db.accessories.find(a=>a.productId===p.id&&a.location===loc)?.qty||0;let already=saleCart.filter(x=>x.productId===p.id).reduce((s,x)=>s+x.qty,0);if(!Number.isInteger(qty)||qty<1||qty+already>available)return alert("Quantity exceeds available stock");}
 let price=Number($("saleUnitPrice").value);if(!Number.isFinite(price)||price<0)return alert("Enter a valid sale price");
-saleCart.push({productId:p.id,qty,imei,unitPrice:price,amount:qty*price,location:loc});
+let batchAllocations=[];
+if(p.type==="mobile"){const b=db.batches.find(x=>x.id===device.batchId);batchAllocations=[{batchId:b?.id||null,qty:1,unitCost:device.unitCost??b?.unitCost??null,costVerified:device.costVerified??b?.costVerified??false}];}
+else{
+let remaining=qty;
+let layers=db.batches.filter(b=>b.productId===p.id&&b.location===loc&&Number(b.qty)>0).sort((a,b)=>String(a.createdAt||"").localeCompare(String(b.createdAt||"")));
+for(const b of layers){if(remaining<=0)break;const take=Math.min(remaining,Number(b.qty));batchAllocations.push({batchId:b.id,qty:take,unitCost:b.unitCost,costVerified:!!b.costVerified});remaining-=take;}
+if(remaining>0){const legacyId=crypto.randomUUID();db.batches.push({id:legacyId,productId:p.id,location:loc,qty:remaining,unitCost:null,source:"legacy-untracked",costVerified:false,barcode:"",createdAt:new Date().toISOString(),legacy:true});batchAllocations.push({batchId:legacyId,qty:remaining,unitCost:null,costVerified:false});}
+}
+saleCart.push({productId:p.id,qty,imei,unitPrice:price,amount:qty*price,location:loc,batchAllocations});
 renderSaleCart();if(p.type==="mobile")syncSale();else updateSalePreview();
 }
 function removeSaleItem(i){saleCart.splice(i,1);renderSaleCart()}
@@ -518,7 +526,7 @@ for(let x of saleCart){if(x.location!==loc)return alert("All invoice items must 
 let subtotal=saleCart.reduce((s,x)=>s+x.amount,0),discount=Number($("saleDiscount").value)||0;if(discount<0||discount>subtotal)return alert("Discount cannot exceed subtotal");
 let seq=db.sales.length+1,invoiceNo="SHS-"+new Date().toISOString().slice(0,10).replace(/-/g,"")+"-"+String(seq).padStart(4,"0");
 let sale={id:crypto.randomUUID(),invoiceNo,at:now(),location:loc,staff,customer:$("saleCustomer").value.trim(),phone:$("salePhone").value.trim(),payment:$("salePayment").value,items:saleCart.map(x=>({...x})),subtotal,discount,total:subtotal-discount};
-for(let x of sale.items){let p=product(x.productId);if(p.type==="mobile")db.devices=db.devices.filter(d=>d.imei!==x.imei);else{let stock=db.accessories.find(a=>a.productId===p.id&&a.location===loc);stock.qty-=x.qty;}}
+for(let x of sale.items){let p=product(x.productId);if(p.type==="mobile"){const device=db.devices.find(d=>d.imei===x.imei&&d.location===loc&&d.productId===p.id);if(device?.batchId){const batch=db.batches.find(b=>b.id===device.batchId);if(batch)batch.qty=Math.max(0,Number(batch.qty||0)-1);}db.devices=db.devices.filter(d=>d.imei!==x.imei);}else{let stock=db.accessories.find(a=>a.productId===p.id&&a.location===loc);stock.qty-=x.qty;(x.batchAllocations||[]).forEach(layer=>{const batch=db.batches.find(b=>b.id===layer.batchId);if(batch)batch.qty=Math.max(0,Number(batch.qty||0)-layer.qty);});}const costs=(x.batchAllocations||[]).map(layer=>({batchId:layer.batchId,qty:layer.qty,unitCost:layer.unitCost,costVerified:layer.costVerified}));x.costLayers=costs;x.costOfGoodsSold=costs.every(c=>c.costVerified&&Number(c.unitCost)>0)?costs.reduce((sum,c)=>sum+c.qty*Number(c.unitCost),0):null;x.costVerified=x.costOfGoodsSold!==null;}
 db.sales.push(sale);save();saleCart=[];render();showInvoice(sale);alert("Sale saved successfully. Invoice "+invoiceNo+" has been generated below. Use Print Invoice to print or save as PDF.");
 }
 function renderReturns(){
