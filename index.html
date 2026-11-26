@@ -67,6 +67,7 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <div class="card"><small>Transfers</small><div class="num" id="totalTransfers">0</div></div>
 </div>
 <div class="panel"><h3>Shop-wise Stock</h3><div class="tablewrap"><table><thead><tr><th>Location</th><th>Mobile IMEIs</th><th>Accessory Units</th></tr></thead><tbody id="locationRows"></tbody></table></div></div>
+<div class="panel"><h3>Product-wise Stock Overview</h3><p class="muted" id="dashboardStockHint">Har product ka stock har location ke hisab se ek hi row mein dekhein.</p><label>Search Product</label><input id="dashboardStockSearch" placeholder="Product, category, brand ya model search karein" oninput="renderDashboardStock()"><div class="tablewrap"><table><thead id="dashboardStockHead"></thead><tbody id="dashboardStockRows"></tbody></table></div></div>
 <div class="panel"><h3>Low Stock Alerts</h3><div id="lowStockRows"></div></div>
 <div class="panel"><h3>Recent Transfers</h3><div id="recent"></div></div>
 </section>
@@ -311,6 +312,17 @@ function isGodownView(){return db.locationTypes[activeLocation]==="godown";}
 function locationVisible(loc){return isGodownView()||loc===activeLocation;}
 function scopedLocations(){return isGodownView()?locations:[activeLocation];}
 function productLocationBreakdown(p){return scopedLocations().map(loc=>({loc,qty:productLocationQty(p,loc)})).filter(x=>x.qty>0);}
+function renderDashboardStock(){
+const head=$("dashboardStockHead"),body=$("dashboardStockRows");if(!head||!body)return;
+const locs=scopedLocations(),q=($("dashboardStockSearch").value||"").trim().toLowerCase();
+head.innerHTML="<tr><th>Product</th><th>Category</th><th>Type</th>"+locs.map(l=>"<th>"+esc(l)+"</th>").join("")+"<th>Total</th></tr>";
+const rows=db.products.filter(p=>(pname(p)+" "+productCategory(p)+" "+(p.brand||"")+" "+(p.model||"")).toLowerCase().includes(q)).sort((a,b)=>productCategory(a).localeCompare(productCategory(b))||pname(a).localeCompare(pname(b))).map(p=>{
+const quantities=locs.map(l=>productLocationQty(p,l)),total=quantities.reduce((a,b)=>a+b,0);
+return "<tr><td>"+iconMarkup(p.icon)+" "+esc(pname(p))+"</td><td>"+esc(productCategory(p))+"</td><td>"+(p.type==="mobile"?"Mobile":"Accessory")+"</td>"+quantities.map(n=>"<td><strong>"+n+"</strong></td>").join("")+"<td><strong>"+total+"</strong></td></tr>";
+});
+body.innerHTML=rows.length?rows.join(""):"<tr><td colspan='"+(locs.length+4)+"'>No products found</td></tr>";
+$("dashboardStockHint").textContent=isGodownView()?"Main Godown view: sabhi shops aur godowns ka stock ek saath dikh raha hai.":"Shop view: sirf "+activeLocation+" ka stock dikh raha hai.";
+}
 function renderLowStock(){const el=$("lowStockRows");if(!el)return;let rows=[];db.products.filter(p=>Number(p.minStock||0)>0).forEach(p=>scopedLocations().forEach(loc=>{let qty=productLocationQty(p,loc),min=Number(p.minStock||0);if(qty<=min)rows.push("<tr><td>"+esc(pname(p))+"</td><td>"+esc(loc)+"</td><td>"+qty+"</td><td>"+min+"</td></tr>");}));el.innerHTML=rows.length?'<div class="tablewrap"><table><thead><tr><th>Product</th><th>Location</th><th>Available</th><th>Minimum</th></tr></thead><tbody>'+rows.join("")+'</tbody></table></div>':"<p class='muted'>No low-stock alerts. Set a minimum quantity on products to enable alerts.</p>";}
 function syncAdjustment(){let p=product($("adjustProduct").value),mobile=p&&p.type==="mobile";$("adjustMobileFields").style.display=mobile?"block":"none";$("adjustAccessoryFields").style.display=mobile?"none":"block";}
 function renderAdjustments(){$("adjustRows").innerHTML=db.adjustments.slice().reverse().filter(a=>locationVisible(a.location)).map(a=>'<tr><td>'+date(a.at)+'</td><td>'+esc(pname(product(a.productId)||{}))+'</td><td>'+esc(a.location)+'</td><td>'+esc(a.before)+'</td><td>'+esc(a.after)+'</td><td>'+esc(a.reason)+'</td><td>'+esc(a.staff)+'</td></tr>').join("")||'<tr><td colspan="7">No adjustments yet</td></tr>';}
@@ -839,7 +851,7 @@ let devices=db.devices.filter(d=>scope.includes(d.location)),accessories=db.acce
 $("totalProducts").textContent=db.products.filter(p=>productLocationBreakdown(p).length>0).length;$("totalMobiles").textContent=devices.length;$("totalAccessories").textContent=accessories.reduce((s,a)=>s+a.qty,0);$("totalTransfers").textContent=db.transfers.length;
 $("locationRows").innerHTML=scopedLocations().map(l=>`<tr><td>${esc(l)}</td><td>${db.devices.filter(d=>d.location===l).length}</td><td>${db.accessories.filter(a=>a.location===l).reduce((s,a)=>s+a.qty,0)}</td></tr>`).join("");
 $("totalTransfers").textContent=db.transfers.length;
-renderProductManager();if($("productCategoryFilter")){const filter=$("productCategoryFilter"),previous=filter.value,categories=[...new Set([...db.categories,...db.products.map(productCategory)])].sort((a,b)=>a.localeCompare(b));filter.innerHTML='<option value="All Categories">All Categories</option>'+categories.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join("");filter.value=categoryFilterInitialized&&categories.includes(previous)?previous:"All Categories";categoryFilterInitialized=true;}renderProducts();renderReturns();renderDamages();syncReturnForms();syncDamage();renderLocationManager();renderLowStock();renderAdjustments();renderPurchases();if($("reportStockRows"))renderReports();
+renderDashboardStock();renderProductManager();if($("productCategoryFilter")){const filter=$("productCategoryFilter"),previous=filter.value,categories=[...new Set([...db.categories,...db.products.map(productCategory)])].sort((a,b)=>a.localeCompare(b));filter.innerHTML='<option value="All Categories">All Categories</option>'+categories.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join("");filter.value=categoryFilterInitialized&&categories.includes(previous)?previous:"All Categories";categoryFilterInitialized=true;}renderProducts();renderReturns();renderDamages();syncReturnForms();syncDamage();renderLocationManager();renderLowStock();renderAdjustments();renderPurchases();if($("reportStockRows"))renderReports();
 $("recent").innerHTML=db.transfers.filter(t=>isGodownView()||t.from===activeLocation||t.to===activeLocation).slice(-5).reverse().map(t=>`<p>${esc(t.imei||t.qty+" units")} · ${esc(t.from)} → ${esc(t.to)} · ${date(t.at)}</p>`).join("")||"No transfers yet";
 renderHistory();renderOutHistory();renderSalesHistory();
 }
