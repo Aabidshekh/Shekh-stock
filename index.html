@@ -427,7 +427,7 @@ save();render();
 function toggleType(){let m=$("pType").value==="mobile";$("mobileFields").style.display=m?"block":"none";$("accessoryFields").style.display=m?"none":"block";const c=$("pCategory");if(m&&(!c.value||c.value==="Accessories"))c.value="Mobile";else if(!m&&c.value==="Mobile")c.value="";}
 function toggleCustomIcon(){$("pCustomIconWrap").style.display=$("pIcon").value==="custom"?"block":"none";}
 function toggleEditCustomIcon(){$("editCustomIconWrap").style.display=$("editProductIcon").value==="custom"?"block":"none";}
-function addOptions(){let opts=db.products.map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");$("stockProduct").innerHTML=opts;$("transferProduct").innerHTML=opts;syncStock();syncTransfer()}
+function addOptions(){let stockOpts=catalogProducts(activeLocation).map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");let from=$("fromLocation")?.value||activeLocation,transferOpts=catalogProducts(from).map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");$("stockProduct").innerHTML=stockOpts;$("transferProduct").innerHTML=transferOpts;syncStock();syncTransfer()}
 function syncStock(){let p=product($("stockProduct").value),m=p&&p.type==="mobile";$("stockMobile").style.display=m?"block":"none";$("stockAccessory").style.display=m?"none":"block"}
 function syncTransfer(){let p=product($("transferProduct").value),m=p&&p.type==="mobile";$("transferMobile").style.display=m?"block":"none";$("transferAccessory").style.display=m?"none":"block";let from=$("fromLocation").value;$("transferImei").innerHTML=db.devices.filter(d=>d.productId===p?.id&&d.location===from).map(d=>`<option value="${d.id}">${d.imei}</option>`).join("")}
 function syncOut(){
@@ -735,7 +735,7 @@ if(!name)return alert("Location ka naam likhein");
 if(locations.some(x=>x.toLowerCase()===name.toLowerCase()))return alert("Ye location pehle se maujood hai");
 locations.push(name);db.locations=locations;db.locationTypes[name]=type;save();e.target.reset();render();alert(name+" add ho gaya.");
 };
-$("adjustProduct").innerHTML=db.products.map(p=>'<option value="'+p.id+'">'+esc(pname(p))+'</option>').join("");
+$("adjustProduct").innerHTML=catalogProducts().map(p=>'<option value="'+p.id+'">'+esc(pname(p))+'</option>').join("");
 $("adjustProduct").onchange=syncAdjustment;
 $("purchaseProduct").onchange=syncPurchase;
 $("adjustmentForm").onsubmit=e=>{
@@ -921,18 +921,18 @@ function render(){
 renderLocationControls();
 renderBarcodeOptions();
 $("adjustProduct").innerHTML=db.products.map(p=>'<option value="'+p.id+'">'+esc(pname(p))+'</option>').join("");
-$("purchaseProduct").innerHTML=db.products.map(p=>'<option value="'+p.id+'">'+esc(pname(p))+'</option>').join("");
+$("purchaseProduct").innerHTML=catalogProducts().map(p=>'<option value="'+p.id+'">'+esc(pname(p))+'</option>').join("");
 syncAdjustment();syncPurchase();
 $("locationFilter").value=activeLocation;
 $("saleLocation").value=activeLocation;
 if($("damageLocation")&&!isGodownView())$("damageLocation").value=activeLocation;
 addOptions();
-$("saleProduct").innerHTML=db.products.map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");
-$("customerReturnProduct").innerHTML=db.products.map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");
-$("shopReturnProduct").innerHTML=db.products.map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");
-$("damageProduct").innerHTML=db.products.map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");
+$("saleProduct").innerHTML=catalogProducts().map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");
+$("customerReturnProduct").innerHTML=catalogProducts().map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");
+$("shopReturnProduct").innerHTML=catalogProducts().map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");
+$("damageProduct").innerHTML=catalogProducts().map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");
 syncSale();renderSaleCart();renderSalesHistory();
-if($("outProduct")){$("outProduct").innerHTML=db.products.map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");syncOut();}
+if($("outProduct")){$("outProduct").innerHTML=catalogProducts().map(p=>`<option value="${p.id}">${esc(pname(p))}</option>`).join("");syncOut();}
 let loc=activeLocation,scope=[activeLocation];
 let devices=db.devices.filter(d=>d.location===activeLocation),accessories=db.accessories.filter(a=>a.location===activeLocation);
 $("totalProducts").textContent=db.products.filter(p=>productLocationQty(p,activeLocation)>0).length;$("totalMobiles").textContent=devices.length;$("totalAccessories").textContent=accessories.reduce((s,a)=>s+a.qty,0);$("totalTransfers").textContent=db.transfers.filter(t=>t.from===activeLocation||t.to===activeLocation).length;
