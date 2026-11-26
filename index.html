@@ -672,17 +672,25 @@ const category=$("editProductCategory").value.trim();if(!category)return alert("
 save();cancelProductEdit();render();alert("Product details update ho gayi hain.");
 };
 function deleteUnusedCategory(){
-const deletable=db.categories.filter(c=>{
-const items=db.products.filter(p=>productCategory(p)===c);
-return items.every(p=>p.type==="mobile"?!db.devices.some(d=>d.productId===p.id):!db.accessories.some(a=>a.productId===p.id&&Number(a.qty||0)>0));
-});
-if(!deletable.length)return alert("Jis category mein stock hai use delete karne se pehle stock transfer ya zero karein.");
-const choice=prompt("Kaunsi zero-stock category delete karni hai?\n"+deletable.map((c,i)=>(i+1)+". "+c).join("\n")+"\nNumber enter karein:");
-if(choice===null)return;const n=Number(choice);if(!Number.isInteger(n)||n<1||n>deletable.length)return alert("Sahi category number enter karein.");
-const category=deletable[n-1];if(!confirm(category+" category delete karni hai? Iske products Uncategorized mein chale jayenge."))return;
-db.products.filter(p=>productCategory(p)===category).forEach(p=>p.category="Uncategorized");
-db.categories=db.categories.filter(c=>c!==category);if(!db.categories.includes("Uncategorized"))db.categories.push("Uncategorized");
-save();render();alert(category+" category delete ho gayi. Iske products Uncategorized mein move kar diye gaye.");
+const currentCategories=catalogCategories(activeLocation).filter(c=>!defaultCategoryNames.has(c));
+if(!currentCategories.length)return alert("Is location mein delete karne ke liye koi custom category nahi hai.");
+const choice=prompt(activeLocation+" mein kaunsi category delete karni hai?\n"+currentCategories.map((c,i)=>(i+1)+". "+c).join("\n")+"\nCategory number enter karein:");
+if(choice===null)return;
+const n=Number(choice);
+if(!Number.isInteger(n)||n<1||n>currentCategories.length)return alert("Sahi category number enter karein.");
+const category=currentCategories[n-1];
+const assignedProducts=catalogProducts(activeLocation).filter(p=>productCategory(p)===category);
+if(assignedProducts.length){
+  const inStock=assignedProducts.filter(p=>productLocationQty(p,activeLocation)>0);
+  if(inStock.length)return alert('"'+category+'" category delete nahi ho sakti, kyunki is location mein is category ke '+inStock.length+' product(s) ka stock maujood hai. Pehle stock transfer ya zero karein.');
+  return alert('"'+category+'" category ke '+assignedProducts.length+' product(s) abhi is location ke catalog mein hain. Pehle un products ko delete karein ya unki category change karein, phir category delete karein.');
+}
+if(!confirm('"'+category+'" category ko sirf '+activeLocation+' se delete karna hai? Dusri locations par iska data affect nahi hoga.'))return;
+if(Array.isArray(db.categoryLocations?.[category])){
+  db.categoryLocations[category]=db.categoryLocations[category].filter(loc=>loc!==activeLocation);
+  if(!db.categoryLocations[category].length)delete db.categoryLocations[category];
+}
+save();render();alert('"'+category+'" category '+activeLocation+' se delete ho gayi.');
 }
 function toggleProductCategory(category){
 if(expandedProductCategories.has(category))expandedProductCategories.delete(category);else expandedProductCategories.add(category);
