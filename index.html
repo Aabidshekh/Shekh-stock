@@ -270,6 +270,9 @@ if(!Array.isArray(db.returns))db.returns=[];
 if(!Array.isArray(db.damages))db.damages=[];
 if(!Array.isArray(db.adjustments))db.adjustments=[];
 if(!Array.isArray(db.purchases))db.purchases=[];
+if(!Array.isArray(db.batches))db.batches=[];
+if(!Array.isArray(db.devices))db.devices=[];
+if(!Array.isArray(db.accessories))db.accessories=[];
 let saleCart=[];
 const $=id=>document.getElementById(id);
 const save=()=>localStorage.setItem(KEY,JSON.stringify(db));
@@ -278,6 +281,22 @@ db.products.forEach(p=>{if(p.type==="accessory"&&!p.category&&p.model){p.categor
 const defaultCategories=["Mobile","Charger","Earphone","Cable","Cover","Tempered Glass","Battery","Power Bank","Speaker","Watch","Other Accessories"];
 if(!Array.isArray(db.categories))db.categories=[];
 db.categories=[...new Set([...defaultCategories,...db.categories,...db.products.map(p=>String(p.category||"Uncategorized"))].map(x=>String(x||"").trim()).filter(Boolean))];
+// One-time migration: preserve current stock totals while recording legacy cost confidence.
+if(!db.batchMigrationV1){
+  db.devices.forEach(d=>{
+    if(d.batchId&&db.batches.some(b=>b.id===d.batchId))return;
+    const p=db.products.find(x=>x.id===d.productId),cost=p&&p.purchasePrice!=null&&p.purchasePrice!==""&&Number(p.purchasePrice)>0?Number(p.purchasePrice):null;
+    const batch={id:crypto.randomUUID(),productId:d.productId,location:d.location,qty:1,unitCost:cost,source:"legacy",costVerified:cost!==null,barcode:d.imei,createdAt:new Date().toISOString(),legacy:true};
+    db.batches.push(batch);d.batchId=batch.id;d.unitCost=cost;d.costVerified=cost!==null;
+  });
+  db.accessories.forEach(a=>{
+    const qty=Number(a.qty||0);if(qty<=0)return;
+    const p=db.products.find(x=>x.id===a.productId),cost=p&&p.purchasePrice!=null&&p.purchasePrice!==""&&Number(p.purchasePrice)>0?Number(p.purchasePrice):null;
+    const batch={id:crypto.randomUUID(),productId:a.productId,location:a.location,qty,unitCost:cost,source:"legacy",costVerified:cost!==null,barcode:"SHB"+crypto.randomUUID().replace(/-/g,"").slice(0,12).toUpperCase(),createdAt:new Date().toISOString(),legacy:true};
+    db.batches.push(batch);a.batchIds=[...(a.batchIds||[]),batch.id];
+  });
+  db.batchMigrationV1=true;
+}
 save();
 const esc=s=>String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const product=id=>db.products.find(p=>p.id===id);
@@ -703,9 +722,24 @@ save();e.target.reset();syncAdjustment();render();alert("Stock adjustment saved 
 function syncPurchase(){let p=product($("purchaseProduct").value),mobile=p&&p.type==="mobile";$("purchaseMobileFields").style.display=mobile?"block":"none";$("purchaseAccessoryFields").style.display=mobile?"none":"block";}
 $("purchaseForm").onsubmit=e=>{
 e.preventDefault();let p=product($("purchaseProduct").value),loc=$("purchaseLocation").value,supplier=$("purchaseSupplier").value.trim(),staff=$("purchaseStaff").value.trim(),unitPrice=Number($("purchaseUnitPrice").value),reference=$("purchaseInvoice").value.trim();if(!p||!supplier||!staff)return alert("Complete all required fields");if(!Number.isFinite(unitPrice)||unitPrice<0)return alert("Enter a valid purchase price");let record={id:crypto.randomUUID(),productId:p.id,location:loc,supplier,staff,unitPrice,reference,at:now()};
-if(p.type==="mobile"){let arr=$("purchaseImeis").value.split(/[\n,]+/).map(x=>x.trim()).filter(Boolean);if(!arr.length)return alert("Enter received IMEI(s)");if(arr.some(x=>!/^[0-9]{15}$/.test(x)))return alert("Every IMEI must be 15 digits");if(new Set(arr).size!==arr.length||arr.some(x=>db.devices.some(d=>d.imei===x)))return alert("Duplicate IMEI found");arr.forEach(imei=>db.devices.push({id:crypto.randomUUID(),productId:p.id,imei,location:loc}));record.imeis=arr;record.qty=arr.length;}
-else{let qty=Number($("purchaseQty").value);if(!Number.isInteger(qty)||qty<1)return alert("Enter valid quantity");let stock=db.accessories.find(a=>a.productId===p.id&&a.location===loc);if(stock)stock.qty+=qty;else db.accessories.push({productId:p.id,location:loc,qty});record.qty=qty;}
-p.purchasePrice=unitPrice;db.purchases.push(record);save();e.target.reset();render();alert("Purchase recorded and stock added.");
+if(p.type==="mobile"){
+let arr=$("purchaseImeis").value.split(/[\\n,]+/).map(x=>x.trim()).filter(Boolean);
+if(!arr.length)return alert("Enter received IMEI(s)");
+if(arr.some(x=>!/^[0-9]{15}$/.test(x)))return alert("Every IMEI must be 15 digits");
+if(new Set(arr).size!==arr.length||arr.some(x=>db.devices.some(d=>d.imei===x)))return alert("Duplicate IMEI found");
+const batchId=crypto.randomUUID();
+arr.forEach(imei=>db.devices.push({id:crypto.randomUUID(),productId:p.id,imei,location:loc,batchId,unitCost:unitPrice,costVerified:true}));
+db.batches.push({id:batchId,productId:p.id,location:loc,qty:arr.length,unitCost:unitPrice,source:"purchase",costVerified:true,barcode:"",createdAt:new Date().toISOString(),purchaseId:record.id});
+record.batchId=batchId;record.imeis=arr;record.qty=arr.length;
+}else{
+let qty=Number($("purchaseQty").value);if(!Number.isInteger(qty)||qty<1)return alert("Enter valid quantity");
+const batchId=crypto.randomUUID(),batchBarcode="SHB"+crypto.randomUUID().replace(/-/g,"").slice(0,12).toUpperCase();
+let stock=db.accessories.find(a=>a.productId===p.id&&a.location===loc);
+if(stock){stock.qty+=qty;stock.batchIds=stock.batchIds||[];stock.batchIds.push(batchId);}else db.accessories.push({productId:p.id,location:loc,qty,batchIds:[batchId]});
+db.batches.push({id:batchId,productId:p.id,location:loc,qty,unitCost:unitPrice,source:"purchase",costVerified:true,barcode:batchBarcode,createdAt:new Date().toISOString(),purchaseId:record.id});
+record.batchId=batchId;record.barcode=batchBarcode;record.qty=qty;
+}
+p.purchasePrice=unitPrice;db.purchases.push(record);save();e.target.reset();render();alert("Purchase recorded. Naya stock alag cost batch mein add hua.");
 };
 $("productForm").onsubmit=e=>{
 e.preventDefault();
