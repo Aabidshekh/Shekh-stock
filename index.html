@@ -611,6 +611,8 @@ renderProducts();
 function renderProducts(){
 if(!$("productRows"))return;
 const loc=$("locationFilter").value,visibleLocs=isGodownView()?locations:[activeLocation],q=($("productSearch").value||"").toLowerCase(),selectedCategory=$("productCategoryFilter")?.value||"All Categories",groups=new Map();
+const allCategories=[...new Set([...db.categories,...db.products.map(productCategory)])].sort((x,y)=>x.localeCompare(y));
+allCategories.filter(c=>selectedCategory==="All Categories"||c===selectedCategory).forEach(c=>groups.set(c,[]));
 db.products.forEach(p=>{
 const category=productCategory(p);
 if(selectedCategory!=="All Categories"&&category!==selectedCategory)return;
@@ -621,13 +623,13 @@ db.devices.filter(d=>d.productId===p.id&&visibleLocs.includes(d.location)&&(!q||
 }else{
 db.accessories.filter(a=>a.productId===p.id&&visibleLocs.includes(a.location)&&(!q||matches)).forEach(a=>{if(Number(a.qty||0)>0)itemRows.push('<tr><td class="icon-preview">'+iconMarkup(p.icon)+'</td><td>'+esc(pname(p))+'</td><td>Accessory</td><td>'+esc(p.barcode||"-")+'</td><td>'+esc(a.location)+'</td><td>'+a.qty+' units</td><td>₹'+Number(p.salePrice||0).toFixed(2)+'</td></tr>');});
 }
-if(itemRows.length){if(!groups.has(category))groups.set(category,[]);groups.get(category).push(...itemRows);}
+if(!groups.has(category))groups.set(category,[]);if(itemRows.length)groups.get(category).push(...itemRows);
 });
 let rows=[];
 [...groups.keys()].sort((a,b)=>a.localeCompare(b)).forEach(category=>{
 const items=groups.get(category),expanded=expandedProductCategories.has(category)||!!q,encoded=encodeURIComponent(category).replaceAll("'","%27");
 rows.push('<tr class="category-group-row"><td colspan="7"><button type="button" class="category-toggle" aria-expanded="'+expanded+'" onclick="toggleProductCategory(decodeURIComponent(\''+encoded+'\'))"><span class="category-chevron">'+(expanded?'▾':'▸')+'</span> '+esc(category)+' <span class="category-count">'+items.length+' stock entries</span></button></td></tr>');
-if(expanded)rows.push(...items);
+if(expanded){if(items.length)rows.push(...items);else rows.push('<tr><td colspan="7">Is category mein is location par abhi stock nahi hai.</td></tr>');}
 });
 $("productRows").innerHTML=rows.join("")||"<tr><td colspan='7'>No stock found in this location</td></tr>";
 }
