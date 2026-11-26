@@ -915,7 +915,8 @@ for(const b of layers){if(remaining<=0)break;const take=Math.min(remaining,Numbe
 if(remaining>0){const movedId=crypto.randomUUID();db.batches.push({id:movedId,productId:p.id,location:to,qty:remaining,unitCost:null,source:"transfer-untracked",costVerified:false,barcode:"SHB"+crypto.randomUUID().replace(/-/g,"").slice(0,12).toUpperCase(),createdAt:new Date().toISOString(),legacy:true});allocations.push({sourceBatchId:null,batchId:movedId,qty:remaining,unitCost:null,costVerified:false});}
 src.qty-=qty;let dst=db.accessories.find(x=>x.productId===p.id&&x.location===to);if(dst){dst.qty+=qty;dst.batchIds=dst.batchIds||[];dst.batchIds.push(...allocations.map(x=>x.batchId));}else db.accessories.push({productId:p.id,location:to,qty,batchIds:allocations.map(x=>x.batchId)});t.qty=qty;t.batchAllocations=allocations;
 }
-db.transfers.push(t);save();e.target.reset();render();alert("Transfer completed successfully");
+if(!Array.isArray(p.catalogLocations))p.catalogLocations=[p.createdLocation||from];if(!p.catalogLocations.includes(to))p.catalogLocations.push(to);const category=productCategory(p);db.categoryLocations=db.categoryLocations||{};db.categoryLocations[category]=db.categoryLocations[category]||[];if(!db.categoryLocations[category].includes(to))db.categoryLocations[category].push(to);
+db.transfers.push(t);save();e.target.reset();render();alert("Transfer completed successfully. Product and category are now available at "+to+".");
 };
 function render(){
 renderLocationControls();
