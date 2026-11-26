@@ -300,7 +300,14 @@ db.products.forEach(p=>{
 const defaultCategoryNames=new Set(defaultCategories);
 function catalogProductVisible(p,loc=activeLocation){return (Array.isArray(p.catalogLocations)?p.catalogLocations:[p.createdLocation||loc]).includes(loc);}
 function catalogProducts(loc=activeLocation){return db.products.filter(p=>catalogProductVisible(p,loc));}
-function catalogCategories(loc=activeLocation){return [...new Set([...defaultCategories,...db.categories.filter(c=>defaultCategoryNames.has(c)),...Object.keys(db.categoryLocations).filter(c=>defaultCategoryNames.has(c)||db.categoryLocations[c].includes(loc)),...catalogProducts(loc).map(productCategory)])].sort((a,b)=>a.localeCompare(b));}
+if(!db.defaultCategoryScopeMigrationV1){
+  defaultCategories.forEach(category=>{
+    if(!Array.isArray(db.categoryLocations[category]))db.categoryLocations[category]=[];
+    locations.forEach(loc=>{if(!db.categoryLocations[category].includes(loc))db.categoryLocations[category].push(loc);});
+  });
+  db.defaultCategoryScopeMigrationV1=true;
+}
+function catalogCategories(loc=activeLocation){return [...new Set([...Object.keys(db.categoryLocations).filter(c=>Array.isArray(db.categoryLocations[c])&&db.categoryLocations[c].includes(loc)),...catalogProducts(loc).map(productCategory)])].sort((a,b)=>a.localeCompare(b));}
 // One-time migration: preserve current stock totals while recording legacy cost confidence.
 if(!db.batchMigrationV1){
   db.devices.forEach(d=>{
@@ -672,8 +679,8 @@ const category=$("editProductCategory").value.trim();if(!category)return alert("
 save();cancelProductEdit();render();alert("Product details update ho gayi hain.");
 };
 function deleteUnusedCategory(){
-const currentCategories=catalogCategories(activeLocation).filter(c=>!defaultCategoryNames.has(c));
-if(!currentCategories.length)return alert("Is location mein delete karne ke liye koi custom category nahi hai.");
+const currentCategories=catalogCategories(activeLocation);
+if(!currentCategories.length)return alert("Is location mein koi category available nahi hai.");
 const choice=prompt(activeLocation+" mein kaunsi category delete karni hai?\n"+currentCategories.map((c,i)=>(i+1)+". "+c).join("\n")+"\nCategory number enter karein:");
 if(choice===null)return;
 const n=Number(choice);
