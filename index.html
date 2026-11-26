@@ -281,6 +281,26 @@ db.products.forEach(p=>{if(p.type==="accessory"&&!p.category&&p.model){p.categor
 const defaultCategories=["Mobile","Charger","Earphone","Cable","Cover","Tempered Glass","Battery","Power Bank","Speaker","Watch","Other Accessories"];
 if(!Array.isArray(db.categories))db.categories=[];
 db.categories=[...new Set([...defaultCategories,...db.categories,...db.products.map(p=>String(p.category||"Uncategorized"))].map(x=>String(x||"").trim()).filter(Boolean))];
+// Catalog visibility is location-specific. Existing products are mapped to locations where they already have stock.
+if(!db.catalogScopeMigrationV1){
+  db.products.forEach(p=>{
+    if(Array.isArray(p.catalogLocations)&&p.catalogLocations.length)return;
+    const stocked=[...new Set([...db.devices.filter(d=>d.productId===p.id).map(d=>d.location),...db.accessories.filter(a=>a.productId===p.id&&Number(a.qty)>0).map(a=>a.location)])];
+    p.catalogLocations=stocked.length?stocked.slice():[activeLocation];
+    p.createdLocation=p.createdLocation||p.catalogLocations[0];
+  });
+  db.catalogScopeMigrationV1=true;
+}
+if(!db.categoryLocations||typeof db.categoryLocations!=="object")db.categoryLocations={};
+db.products.forEach(p=>{
+  const cat=String(p.category||"Uncategorized");
+  if(!Array.isArray(db.categoryLocations[cat]))db.categoryLocations[cat]=[];
+  (p.catalogLocations||[p.createdLocation||activeLocation]).forEach(loc=>{if(!db.categoryLocations[cat].includes(loc))db.categoryLocations[cat].push(loc);});
+});
+const defaultCategoryNames=new Set(defaultCategories);
+function catalogProductVisible(p,loc=activeLocation){return (Array.isArray(p.catalogLocations)?p.catalogLocations:[p.createdLocation||loc]).includes(loc);}
+function catalogProducts(loc=activeLocation){return db.products.filter(p=>catalogProductVisible(p,loc));}
+function catalogCategories(loc=activeLocation){return [...new Set([...defaultCategories,...db.categories.filter(c=>defaultCategoryNames.has(c)),...Object.keys(db.categoryLocations).filter(c=>defaultCategoryNames.has(c)||db.categoryLocations[c].includes(loc)),...catalogProducts(loc).map(productCategory)])].sort((a,b)=>a.localeCompare(b));}
 // One-time migration: preserve current stock totals while recording legacy cost confidence.
 if(!db.batchMigrationV1){
   db.devices.forEach(d=>{
@@ -353,7 +373,7 @@ function renderDashboardStock(){
 const head=$("dashboardStockHead"),body=$("dashboardStockRows");if(!head||!body)return;
 const locs=scopedLocations(),q=($("dashboardStockSearch").value||"").trim().toLowerCase();
 head.innerHTML="<tr><th>Product</th><th>Category</th><th>Type</th>"+locs.map(l=>"<th>"+esc(l)+"</th>").join("")+"<th>Total</th></tr>";
-const rows=db.products.filter(p=>(pname(p)+" "+productCategory(p)+" "+(p.brand||"")+" "+(p.model||"")).toLowerCase().includes(q)).sort((a,b)=>productCategory(a).localeCompare(productCategory(b))||pname(a).localeCompare(pname(b))).map(p=>{
+const rows=catalogProducts().filter(p=>(pname(p)+" "+productCategory(p)+" "+(p.brand||"")+" "+(p.model||"")).toLowerCase().includes(q)).sort((a,b)=>productCategory(a).localeCompare(productCategory(b))||pname(a).localeCompare(pname(b))).map(p=>{
 const quantities=locs.map(l=>productLocationQty(p,l)),total=quantities.reduce((a,b)=>a+b,0);
 return "<tr><td>"+iconMarkup(p.icon)+" "+esc(pname(p))+"</td><td>"+esc(productCategory(p))+"</td><td>"+(p.type==="mobile"?"Mobile":"Accessory")+"</td>"+quantities.map(n=>"<td><strong>"+n+"</strong></td>").join("")+"<td><strong>"+total+"</strong></td></tr>";
 });
@@ -617,7 +637,7 @@ w.document.write("<html><head><style>"+css+"</style></head><body>"+labels+"<scri
 function renderProductManager(){
 const body=$("productManageRows");if(!body)return;
 const q=($("manageProductSearch").value||"").toLowerCase();
-body.innerHTML=db.products.filter(p=>(pname(p)+" "+productCategory(p)+" "+(p.barcode||"")).toLowerCase().includes(q)).map(p=>{
+body.innerHTML=catalogProducts().filter(p=>(pname(p)+" "+productCategory(p)+" "+(p.barcode||"")).toLowerCase().includes(q)).map(p=>{
 const stockText=String(productLocationQty(p,activeLocation));
 return '<tr><td class="icon-preview">'+iconMarkup(p.icon)+'</td><td>'+esc(pname(p))+'</td><td><span class="category-chip">'+esc(productCategory(p))+'</span></td><td>'+(p.type==="mobile"?"Mobile":"Accessory")+'</td><td>'+stockText+'</td><td>'+esc(p.barcode||"-")+'</td><td><button type="button" onclick="editProduct(\''+p.id+'\')">Edit</button> <button type="button" class="secondary" onclick="deleteProduct(\''+p.id+'\')">Delete</button></td></tr>';
 }).join("")||"<tr><td colspan='7'>No products found</td></tr>";
@@ -671,9 +691,9 @@ renderProducts();
 function renderProducts(){
 if(!$("productRows"))return;
 const loc=activeLocation,visibleLocs=[activeLocation],q=($("productSearch").value||"").toLowerCase(),selectedCategory=$("productCategoryFilter")?.value||"All Categories",groups=new Map();
-const allCategories=[...new Set([...db.categories,...db.products.map(productCategory)])].sort((x,y)=>x.localeCompare(y));
+const visibleProducts=catalogProducts(loc),allCategories=catalogCategories(loc);
 allCategories.filter(c=>selectedCategory==="All Categories"||c===selectedCategory).forEach(c=>groups.set(c,[]));
-db.products.forEach(p=>{
+visibleProducts.forEach(p=>{
 const category=productCategory(p);
 if(selectedCategory!=="All Categories"&&category!==selectedCategory)return;
 const matches=(pname(p)+" "+category+" "+(p.barcode||"")).toLowerCase().includes(q);
@@ -751,20 +771,20 @@ p.purchasePrice=unitPrice;db.purchases.push(record);save();e.target.reset();rend
 };
 $("productForm").onsubmit=e=>{
 e.preventDefault();
-let type=$("pType").value,name=$("pName").value.trim(),category=$("pCategory").value.trim(),barcode=$("pBarcode").value.trim();if(!category)return alert("Category zaroor select ya enter karein");if(!barcode)barcode="SHK"+Date.now().toString().slice(-10);
+let type=$("pType").value,name=$("pName").value.trim(),category=$("pCategory").value.trim(),barcode=$("pBarcode").value.trim(),createdAtLocation=$("pLocation").value||activeLocation;if(!category)return alert("Category zaroor select ya enter karein");if(!barcode)barcode="SHK"+Date.now().toString().slice(-10);
 if(db.products.some(p=>barcode&&p.barcode.toLowerCase()===barcode.toLowerCase()))return alert("Barcode already exists");
 let salePrice=Number($("pSalePrice").value);
 if(!Number.isFinite(salePrice)||salePrice<0)return alert("Enter a valid sale price");
 let purchaseRaw=$("pPurchasePrice").value.trim(),purchasePrice=purchaseRaw===""?null:Number(purchaseRaw);
 if(purchasePrice!==null&&(!Number.isFinite(purchasePrice)||purchasePrice<0))return alert("Enter a valid purchase price");
 let minStock=Number($("pMinStock").value||0);if(!Number.isInteger(minStock)||minStock<0)return alert("Minimum stock must be zero or a positive whole number");
-let selectedIcon=$("pIcon").value,customIcon=$("pCustomIcon").value.trim();if(selectedIcon==="custom"&&!customIcon)return alert("Apna emoji icon enter karein");let p={id:Date.now().toString(),type,name,brand:$("pBrand").value.trim(),model:$("pModel").value.trim(),category,barcode,icon:selectedIcon==="custom"?customIcon:selectedIcon,salePrice,purchasePrice,minStock};
+let selectedIcon=$("pIcon").value,customIcon=$("pCustomIcon").value.trim();if(selectedIcon==="custom"&&!customIcon)return alert("Apna emoji icon enter karein");let p={id:Date.now().toString(),type,name,brand:$("pBrand").value.trim(),model:$("pModel").value.trim(),category,barcode,icon:selectedIcon==="custom"?customIcon:selectedIcon,salePrice,purchasePrice,minStock,createdLocation:createdAtLocation,catalogLocations:[createdAtLocation]};
 let imeis=$("pImeis").value.split(/[\n,]+/).map(x=>x.trim()).filter(Boolean);
 if(type==="mobile"){
 if(imeis.some(x=>!/^\d{15}$/.test(x)))return alert("Every IMEI must be 15 digits");
 if(new Set(imeis).size!==imeis.length||imeis.some(x=>db.devices.some(d=>d.imei===x)))return alert("Duplicate IMEI found");
 }else{let qty=Number($("pQty").value);if(!Number.isInteger(qty)||qty<0)return alert("Enter valid quantity")}
-db.products.push(p);if(!db.categories.includes(category))db.categories.push(category);
+db.products.push(p);if(!db.categories.includes(category))db.categories.push(category);db.categoryLocations[category]=db.categoryLocations[category]||[];if(!db.categoryLocations[category].includes(createdAtLocation))db.categoryLocations[category].push(createdAtLocation);
 if(type==="mobile")imeis.forEach(imei=>db.devices.push({id:crypto.randomUUID(),productId:p.id,imei,location:$("pLocation").value}));
 else{let qty=Number($("pQty").value);if(qty)db.accessories.push({productId:p.id,location:$("pLocation").value,qty})}
 save();e.target.reset();toggleType();toggleCustomIcon();render();alert("Product saved");
@@ -916,7 +936,7 @@ if($("outProduct")){$("outProduct").innerHTML=db.products.map(p=>`<option value=
 let loc=activeLocation,scope=[activeLocation];
 let devices=db.devices.filter(d=>d.location===activeLocation),accessories=db.accessories.filter(a=>a.location===activeLocation);
 $("totalProducts").textContent=db.products.filter(p=>productLocationQty(p,activeLocation)>0).length;$("totalMobiles").textContent=devices.length;$("totalAccessories").textContent=accessories.reduce((s,a)=>s+a.qty,0);$("totalTransfers").textContent=db.transfers.filter(t=>t.from===activeLocation||t.to===activeLocation).length;
-renderInventoryValuation();renderDashboardStock();renderProductManager();if($("productCategoryFilter")){const filter=$("productCategoryFilter"),previous=filter.value,categories=[...new Set([...db.categories,...db.products.map(productCategory)])].sort((a,b)=>a.localeCompare(b));filter.innerHTML='<option value="All Categories">All Categories</option>'+categories.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join("");filter.value=categoryFilterInitialized&&categories.includes(previous)?previous:"All Categories";categoryFilterInitialized=true;}renderProducts();renderReturns();renderDamages();syncReturnForms();syncDamage();renderLocationManager();renderLowStock();renderAdjustments();renderPurchases();if($("reportStockRows"))renderReports();
+renderInventoryValuation();renderDashboardStock();renderProductManager();if($("productCategoryFilter")){const filter=$("productCategoryFilter"),previous=filter.value,categories=catalogCategories();filter.innerHTML='<option value="All Categories">All Categories</option>'+categories.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join("");filter.value=categoryFilterInitialized&&categories.includes(previous)?previous:"All Categories";categoryFilterInitialized=true;}renderProducts();renderReturns();renderDamages();syncReturnForms();syncDamage();renderLocationManager();renderLowStock();renderAdjustments();renderPurchases();if($("reportStockRows"))renderReports();
 $("recent").innerHTML=db.transfers.filter(t=>isGodownView()||t.from===activeLocation||t.to===activeLocation).slice(-5).reverse().map(t=>`<p>${esc(t.imei||t.qty+" units")} · ${esc(t.from)} → ${esc(t.to)} · ${date(t.at)}</p>`).join("")||"No transfers yet";
 renderHistory();renderOutHistory();renderSalesHistory();
 }
