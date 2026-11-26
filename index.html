@@ -7,6 +7,7 @@
 <title>Shekh Stock</title>
 <style>
 *{box-sizing:border-box}
+label:has(+ #pLocation),#pLocation,label:has(+ #stockLocation),#stockLocation,label:has(+ #outLocation),#outLocation,label:has(+ #customerReturnLocation),#customerReturnLocation,label:has(+ #damageLocation),#damageLocation,label:has(+ #adjustLocation),#adjustLocation,label:has(+ #purchaseLocation),#purchaseLocation,label:has(+ #barcodeLocation),#barcodeLocation{display:none!important}
 body{margin:0;background:#0b1220;color:#edf3fb;font:14px Arial}
 header{background:#142136;padding:18px;display:flex;justify-content:space-between;align-items:center;gap:10px}
 header h2{margin:0;color:#75a5ff}
@@ -343,7 +344,10 @@ return names.map(name=>'<option value="'+esc(name)+'"'+(name===selected?' select
 }
 function renderLocationControls(){
 const configs=[["locationFilter",false],["pLocation",false],["stockLocation",false],["fromLocation",false],["toLocation",false],["outLocation",false],["customerReturnLocation",false],["shopReturnFrom",true],["damageLocation",false],["saleLocation",false],["adjustLocation",false],["purchaseLocation",false]];
-configs.forEach(([id,shopsOnly])=>{let el=$(id);if(!el)return;let selected=el.value;if(id==="locationFilter"||id==="saleLocation")selected=activeLocation;if(id==="damageLocation"&&!isGodownView()){el.innerHTML=locationOptions(activeLocation,true);el.value=activeLocation;return;}el.innerHTML=locationOptions(selected,shopsOnly);if(!el.value&&el.options.length)el.value=el.options[0].value;});
+configs.forEach(([id,shopsOnly])=>{const el=$(id);if(!el)return;if(id==="locationFilter"){el.innerHTML=locationOptions(activeLocation,false);el.value=activeLocation;return;}if(id==="fromLocation"||id==="toLocation"){el.innerHTML=locationOptions(el.value,false);return;}if(id==="shopReturnFrom"){el.innerHTML=locationOptions(el.value,true);return;}el.innerHTML=locationOptions(activeLocation,false);el.value=activeLocation;});
+const shopReturnOption=$("returnType")?.querySelector('option[value="shop"]');if(shopReturnOption)shopReturnOption.hidden=!isGodownView();
+const transferNav=[...document.querySelectorAll("nav button")].find(b=>b.getAttribute("onclick")==="show('transfer')");if(transferNav)transferNav.style.display=isGodownView()?"":"none";
+const transferSection=$("transfer");if(transferSection)transferSection.style.display=isGodownView()?"":"none";
 }
 function locationInUse(name){
 const has=(arr,key)=>Array.isArray(arr)&&arr.some(x=>x&&x[key]===name);
