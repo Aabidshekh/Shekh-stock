@@ -31,6 +31,22 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 .muted{color:#9aacc3}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media(max-width:650px){.cards{grid-template-columns:1fr 1fr}.row{grid-template-columns:1fr}main{padding:12px}header{padding:14px}}
+
+.category-manager{border-color:#3b5575;background:linear-gradient(145deg,#172941,#122035)}
+.category-manager-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.category-manager-head h3{margin:0 0 5px}.category-manager-head p{margin:0}
+.category-manager-count{background:#263e5d;border:1px solid #405d80;border-radius:20px;padding:6px 11px;font-size:12px;color:#d8e8ff}
+.category-manager-form{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:end;margin:14px 0 8px}
+.category-manager-form input{margin-bottom:0}
+.category-manager-actions{display:flex;gap:8px;align-items:center}
+.category-manager-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-top:12px}
+.category-manager-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;background:#1b2d46;border:1px solid #344b68;border-radius:10px;min-width:0}
+.category-manager-item strong{display:block;overflow-wrap:anywhere}.category-manager-item small{color:#9fb2ca}
+.category-manager-item-actions{display:flex;gap:6px;flex-shrink:0}
+.category-manager-item-actions button{padding:7px 9px;font-size:12px}
+.category-manager-item-actions .danger{background:#853f4b}
+.category-manager-note{font-size:12px;margin-bottom:0}
+@media(max-width:650px){.category-manager-form{grid-template-columns:1fr}.category-manager-actions button{flex:1}.category-manager-item{align-items:flex-start}}
 </style>
 </head>
 <body>
@@ -108,6 +124,16 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 </section>
 <section id="barcodes"><h2>Barcode Generate & Print</h2><div class="panel"><form id="barcodeForm"><label>Product</label><select id="barcodeProduct"></select><label>Location</label><select id="barcodeLocation"></select><label>Barcode Item</label><select id="barcodeItem"></select><label>Copies</label><input id="barcodeCopies" type="number" min="1" max="100" value="1"><label>Label Size</label><select id="barcodeSize"><option value="50x30">50 x 30 mm</option><option value="70x35">70 x 35 mm</option></select><button type="submit">Print Barcode Label</button></form></div></section><section id="productList">
 <h2>Product List & Current Stock</h2>
+<div class="panel category-manager">
+  <div class="category-manager-head"><div><h3>Category Manager</h3><p class="muted">Manage categories for <strong id="categoryManagerLocation"></strong>. Categories are kept separate by location.</p></div><span class="category-manager-count" id="categoryManagerCount">0 categories</span></div>
+  <form id="categoryManagerForm" class="category-manager-form">
+    <div><label for="categoryManagerName">Category Name</label><input id="categoryManagerName" maxlength="60" required placeholder="e.g. Clothes, Medicines, Accessories"></div>
+    <div class="category-manager-actions"><button type="submit" id="categoryManagerSave">Add Category</button><button type="button" class="secondary" id="categoryManagerCancel" onclick="cancelCategoryEdit()" style="display:none">Cancel</button></div>
+  </form>
+  <input id="categoryManagerSearch" placeholder="Search categories..." oninput="renderCategoryManager()">
+  <div id="categoryManagerList" class="category-manager-list"></div>
+  <p class="muted category-manager-note">Note: A category with products or stock assigned cannot be deleted. Change or remove those products first.</p>
+</div>
 <p class="muted">Products pehle category-wise dikhte hain. Category par click karke uske andar ke products aur stock details dekhein.</p>
 <div class="panel"><h3>Manage Products</h3><p class="muted">Yahan se product details edit karein. Delete sirf tab hoga jab product ka stock zero ho aur uska koi transaction history record na ho.</p><input id="manageProductSearch" placeholder="Search product, brand, model or barcode" oninput="renderProductManager()"><div class="tablewrap"><table><thead><tr><th>Icon</th><th>Product</th><th>Category</th><th>Type</th><th>Current Location Stock</th><th>Barcode / SKU</th><th>Action</th></tr></thead><tbody id="productManageRows"></tbody></table></div></div>
 <div class="panel" id="productEditPanel" style="display:none"><h3>Edit Product</h3><form id="productEditForm"><input id="editProductId" type="hidden"><label>Product Name</label><input id="editProductName" required maxlength="100"><div class="row"><div><label>Brand</label><input id="editProductBrand"></div><div><label>Model / Category</label><input id="editProductModel"></div></div><div class="row"><div><label>Selling Price (₹)</label><input id="editProductSalePrice" type="number" min="0" step="0.01" required></div><div><label>Purchase Price (₹)</label><input id="editProductPurchasePrice" type="number" min="0" step="0.01"></div></div><div class="row"><div><label>Minimum Stock Alert</label><input id="editProductMinStock" type="number" min="0" step="1"></div><div><label>Barcode / SKU</label><input id="editProductBarcode" maxlength="80"></div></div><label>Category</label><input id="editProductCategory" list="productCategoryOptions" required><label>Product Icon</label><select id="editProductIcon" onchange="toggleEditCustomIcon()"><option value="phone">Mobile phone</option><option value="charger">Fast charger / adapter</option><option value="earbuds">Earbuds / headphones</option><option value="battery">Battery / power bank</option><option value="box">Accessories / other</option><option value="case">Cover / glass</option><option value="watch">Smartwatch</option><option value="laptop">Laptop / tablet</option><option value="parts">Repair parts</option><option value="gadget">Gadget</option><option value="custom">Other — choose your own emoji</option></select><div id="editCustomIconWrap" style="display:none"><label>Choose Your Icon (Emoji)</label><input id="editCustomIcon" maxlength="8" placeholder="e.g. 🖨️ 💡 🎮 🔊"></div><button type="submit">Save Changes</button> <button type="button" class="secondary" onclick="cancelProductEdit()">Cancel</button></form></div>
@@ -678,6 +704,74 @@ if(barcode&&db.products.some(x=>x.id!==p.id&&x.barcode&&x.barcode.toLowerCase()=
 const category=$("editProductCategory").value.trim();if(!category)return alert("Category zaroor likhein");const selectedIcon=$("editProductIcon").value,customIcon=$("editCustomIcon").value.trim();if(selectedIcon==="custom"&&!customIcon)return alert("Apna emoji icon enter karein");p.name=name;p.brand=$("editProductBrand").value.trim();p.model=$("editProductModel").value.trim();p.category=category;if(!db.categories.includes(category))db.categories.push(category);p.salePrice=salePrice;p.purchasePrice=purchasePrice;p.minStock=minStock;p.barcode=barcode;p.icon=selectedIcon==="custom"?customIcon:selectedIcon;
 save();cancelProductEdit();render();alert("Product details update ho gayi hain.");
 };
+let editingCategoryName=null;
+function renderCategoryManager(){
+const list=$("categoryManagerList");if(!list)return;
+$("categoryManagerLocation").textContent=activeLocation;
+const query=($("categoryManagerSearch")?.value||"").trim().toLowerCase();
+const categories=catalogCategories(activeLocation);
+$("categoryManagerCount").textContent=categories.length+" categories";
+const rows=categories.filter(c=>c.toLowerCase().includes(query)).map(category=>{
+ const linked=catalogProducts(activeLocation).filter(p=>productCategory(p)===category).length;
+ const encoded=encodeURIComponent(category).replaceAll("'","%27");
+ return '<div class="category-manager-item"><div><strong>'+esc(category)+'</strong><small>'+linked+' linked product(s)</small></div><div class="category-manager-item-actions"><button type="button" class="secondary" onclick="startCategoryEdit(decodeURIComponent(\''+encoded+'\'))">Edit</button><button type="button" class="danger" onclick="deleteCategoryByName(decodeURIComponent(\''+encoded+'\'))">Delete</button></div></div>';
+}).join("");
+list.innerHTML=rows||'<p class="muted">No categories found. Add your first category above.</p>';
+}
+function cancelCategoryEdit(){
+editingCategoryName=null;
+$("categoryManagerName").value="";
+$("categoryManagerSave").textContent="Add Category";
+$("categoryManagerCancel").style.display="none";
+}
+function startCategoryEdit(category){
+const linked=db.products.filter(p=>productCategory(p)===category);
+if(linked.length)return alert('Is category se '+linked.length+' product(s) jude hue hain. Un products ki category Product Edit se change karein. Category rename tab available hoga jab koi product isse linked na ho.');
+editingCategoryName=category;
+$("categoryManagerName").value=category;
+$("categoryManagerSave").textContent="Save Changes";
+$("categoryManagerCancel").style.display="inline-block";
+$("categoryManagerName").focus();
+}
+function deleteCategoryByName(category){
+const assigned=catalogProducts(activeLocation).filter(p=>productCategory(p)===category);
+if(assigned.length){
+ const inStock=assigned.filter(p=>productLocationQty(p,activeLocation)>0);
+ if(inStock.length)return alert('"'+category+'" delete nahi ho sakti: '+inStock.length+' product(s) ka stock is location mein hai.');
+ return alert('"'+category+'" delete nahi ho sakti: '+assigned.length+' product(s) abhi is category se linked hain. Pehle Product Edit se unki category change karein.');
+}
+if(!confirm('"'+category+'" category ko sirf '+activeLocation+' se delete karna hai? Dusri locations par iska data affect nahi hoga.'))return;
+if(Array.isArray(db.categoryLocations?.[category])){
+ db.categoryLocations[category]=db.categoryLocations[category].filter(loc=>loc!==activeLocation);
+ if(!db.categoryLocations[category].length)delete db.categoryLocations[category];
+}
+db.categories=(db.categories||[]).filter(c=>c!==category);
+if(editingCategoryName===category)cancelCategoryEdit();
+save();render();
+}
+$("categoryManagerForm")?.addEventListener("submit",e=>{
+ e.preventDefault();
+ const name=$("categoryManagerName").value.trim();
+ if(!name)return alert("Category name enter karein.");
+ const existing=catalogCategories(activeLocation);
+ if(editingCategoryName){
+  if(existing.some(c=>c.toLowerCase()===name.toLowerCase()&&c!==editingCategoryName))return alert("Is naam ki category pehle se maujood hai.");
+  const old=editingCategoryName;
+  if(db.products.some(p=>productCategory(p)===old))return alert("Is category se products linked hain. Product Edit se category change karein.");
+  db.categoryLocations[old]=(db.categoryLocations[old]||[]).filter(loc=>loc!==activeLocation);
+  if(!db.categoryLocations[old].length)delete db.categoryLocations[old];
+  if(!Array.isArray(db.categoryLocations[name]))db.categoryLocations[name]=[];
+  if(!db.categoryLocations[name].includes(activeLocation))db.categoryLocations[name].push(activeLocation);
+  cancelCategoryEdit();
+ }else{
+  if(existing.some(c=>c.toLowerCase()===name.toLowerCase()))return alert("Ye category is location mein pehle se maujood hai.");
+  if(!Array.isArray(db.categoryLocations[name]))db.categoryLocations[name]=[];
+  if(!db.categoryLocations[name].includes(activeLocation))db.categoryLocations[name].push(activeLocation);
+  if(!db.categories.includes(name))db.categories.push(name);
+  $("categoryManagerName").value="";
+ }
+ save();render();
+});
 function deleteUnusedCategory(){
 const currentCategories=catalogCategories(activeLocation);
 if(!currentCategories.length)return alert("Is location mein koi category available nahi hai.");
@@ -952,7 +1046,7 @@ if($("outProduct")){$("outProduct").innerHTML=catalogProducts().map(p=>`<option 
 let loc=activeLocation,scope=[activeLocation];
 let devices=db.devices.filter(d=>d.location===activeLocation),accessories=db.accessories.filter(a=>a.location===activeLocation);
 $("totalProducts").textContent=db.products.filter(p=>productLocationQty(p,activeLocation)>0).length;$("totalMobiles").textContent=devices.length;$("totalAccessories").textContent=accessories.reduce((s,a)=>s+a.qty,0);$("totalTransfers").textContent=db.transfers.filter(t=>t.from===activeLocation||t.to===activeLocation).length;
-renderInventoryValuation();renderDashboardStock();renderProductManager();if($("productCategoryFilter")){const filter=$("productCategoryFilter"),previous=filter.value,categories=catalogCategories();filter.innerHTML='<option value="All Categories">All Categories</option>'+categories.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join("");filter.value=categoryFilterInitialized&&categories.includes(previous)?previous:"All Categories";categoryFilterInitialized=true;}renderProducts();renderReturns();renderDamages();syncReturnForms();syncDamage();renderLocationManager();renderLowStock();renderAdjustments();renderPurchases();if($("reportStockRows"))renderReports();
+renderInventoryValuation();renderDashboardStock();renderCategoryManager();renderProductManager();if($("productCategoryFilter")){const filter=$("productCategoryFilter"),previous=filter.value,categories=catalogCategories();filter.innerHTML='<option value="All Categories">All Categories</option>'+categories.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join("");filter.value=categoryFilterInitialized&&categories.includes(previous)?previous:"All Categories";categoryFilterInitialized=true;}renderProducts();renderReturns();renderDamages();syncReturnForms();syncDamage();renderLocationManager();renderLowStock();renderAdjustments();renderPurchases();if($("reportStockRows"))renderReports();
 $("recent").innerHTML=db.transfers.filter(t=>isGodownView()||t.from===activeLocation||t.to===activeLocation).slice(-5).reverse().map(t=>`<p>${esc(t.imei||t.qty+" units")} · ${esc(t.from)} → ${esc(t.to)} · ${date(t.at)}</p>`).join("")||"No transfers yet";
 renderHistory();renderOutHistory();renderSalesHistory();
 }
