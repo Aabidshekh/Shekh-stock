@@ -254,7 +254,7 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <div class="panel">
 <div class="row"><div><label>Sale Location (Active Shop)</label><select id="saleLocation" disabled></select></div><div><label>Staff Name</label><input id="saleStaff" placeholder="Staff name"></div></div>
 <div class="row"><div><label>Customer Name (optional)</label><input id="saleCustomer" placeholder="Customer name"></div><div><label>Customer Mobile (optional)</label><input id="salePhone" placeholder="Mobile number"></div></div>
-<label>Product</label><select id="saleProduct"></select><div id="saleProductIcon" class="sale-product-icon"></div>
+<label>Scan Batch Barcode / Mobile IMEI (optional)</label><input id="saleScanCode" autocomplete="off" placeholder="Scan exact batch barcode or 15-digit IMEI"><label>Product</label><select id="saleProduct"></select><div id="saleProductIcon" class="sale-product-icon"></div>
 <div id="saleMobileFields"><label>Select IMEI</label><select id="saleImei"></select></div>
 <div id="saleAccessoryFields" style="display:none"><label>Quantity</label><input id="saleQty" type="number" min="1" value="1"><label>Batch Selection</label><select id="saleBatchSelect"><option value="">Automatic FIFO (oldest batch first)</option></select><p class="muted">Barcode/manual batch select karne par selected batch pehle use hoga; baaki quantity FIFO se adjust hogi.</p></div>
 <label>Unit Sale Price (₹)</label><input id="saleUnitPrice" type="number" min="0" step="0.01" value="0">
@@ -705,7 +705,7 @@ const selectedProduct=ps.value,selectedItem=it.value;
 ps.innerHTML=db.products.map(p=>"<option value='"+esc(p.id)+"'>"+esc(pname(p))+"</option>").join("");
 if(db.products.some(p=>p.id===selectedProduct))ps.value=selectedProduct;
 ls.innerHTML="<option value='"+esc(activeLocation)+"'>"+esc(activeLocation)+"</option>";ls.value=activeLocation;
-const p=product(ps.value),items=p&&p.type==="mobile"?db.devices.filter(d=>d.productId===p.id&&d.location===activeLocation).map(d=>({id:d.id,code:d.imei})):p?[{id:"product",code:p.barcode||""}]:[];
+const p=product(ps.value),items=p&&p.type==="mobile"?db.devices.filter(d=>d.productId===p.id&&d.location===activeLocation).map(d=>({id:d.id,code:d.imei})):p?db.batches.filter(b=>b.productId===p.id&&b.location===activeLocation&&Number(b.qty)>0).map(b=>({id:b.id,code:b.barcode||"",qty:b.qty,cost:b.unitCost})):[];
 it.innerHTML=items.map(x=>"<option value='"+esc(x.id)+"' data-code='"+esc(x.code)+"'>"+esc(x.code||"Barcode missing")+"</option>").join("");
 if(items.some(x=>x.id===selectedItem))it.value=selectedItem;
 }
@@ -863,7 +863,17 @@ $("outHistoryRows").innerHTML=db.stockOuts.slice().reverse().filter(t=>locationV
 }
 $("barcodeProduct").onchange=renderBarcodeOptions;$("barcodeLocation").onchange=renderBarcodeOptions;$("barcodeForm").onsubmit=e=>{e.preventDefault();printBarcodeLabel();};
 $("stockProduct").onchange=syncStock;$("transferProduct").onchange=syncTransfer;$("fromLocation").onchange=syncTransfer;
-$("saleProduct").onchange=syncSale;$("saleLocation").onchange=syncSale;
+$("saleProduct").onchange=syncSale;
+$("saleScanCode").addEventListener("input",()=>{
+ const code=$("saleScanCode").value.trim();if(!code)return;
+ const device=db.devices.find(d=>d.imei===code&&d.location===activeLocation);
+ if(device){$("saleProduct").value=device.productId;syncSale();$("saleImei").value=device.id;return;}
+ const batch=db.batches.find(b=>b.barcode&&b.barcode.toLowerCase()===code.toLowerCase()&&b.location===activeLocation&&Number(b.qty)>0);
+ if(batch){$("saleProduct").value=batch.productId;syncSale();if($("saleBatchSelect"))$("saleBatchSelect").value=batch.id;return;}
+ const p=db.products.find(x=>x.type==="accessory"&&x.barcode&&x.barcode.toLowerCase()===code.toLowerCase());
+ if(p){$("saleProduct").value=p.id;syncSale();}
+});
+$("saleLocation").onchange=syncSale;
 $("returnType").onchange=syncReturnForms;$("customerReturnProduct").onchange=syncReturnForms;$("customerReturnLookup").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();lookupCustomerReturnIMEI();}});$("shopReturnProduct").onchange=syncReturnForms;$("shopReturnFrom").onchange=syncReturnForms;$("damageProduct").onchange=syncDamage;$("damageLocation").onchange=syncDamage;
 $("saleQty").addEventListener("input",updateSalePreview);$("saleUnitPrice").addEventListener("input",updateSalePreview);
 $("outMethod").onchange=syncOut;$("outProduct").onchange=syncOut;$("outLocation").onchange=syncOut;
