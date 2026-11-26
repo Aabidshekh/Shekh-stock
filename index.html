@@ -885,11 +885,15 @@ e.preventDefault();let p=product($("transferProduct").value),from=$("fromLocatio
 if(!p||!staff)return alert("Complete all required fields");if(from===to)return alert("Select different locations");
 let t={id:crypto.randomUUID(),productId:p.id,from,to,staff,note:$("transferNote").value,at:now()};
 if(p.type==="mobile"){
-let d=db.devices.find(x=>x.id===$("transferImei").value&&x.location===from);if(!d)return alert("No IMEI available at source location");d.location=to;t.imei=d.imei;t.qty=1;
+let d=db.devices.find(x=>x.id===$("transferImei").value&&x.location===from);if(!d)return alert("No IMEI available at source location");d.location=to;if(d.batchId){const b=db.batches.find(x=>x.id===d.batchId);if(b)b.location=to;}t.imei=d.imei;t.qty=1;t.batchId=d.batchId||null;
 }else{
 let qty=Number($("transferQty").value),src=db.accessories.find(x=>x.productId===p.id&&x.location===from);
 if(!Number.isInteger(qty)||qty<1||!src||src.qty<qty)return alert("Not enough stock at source");
-src.qty-=qty;let dst=db.accessories.find(x=>x.productId===p.id&&x.location===to);if(dst)dst.qty+=qty;else db.accessories.push({productId:p.id,location:to,qty});t.qty=qty;
+let remaining=qty,allocations=[];
+const layers=db.batches.filter(b=>b.productId===p.id&&b.location===from&&Number(b.qty)>0).sort((a,b)=>String(a.createdAt||"").localeCompare(String(b.createdAt||"")));
+for(const b of layers){if(remaining<=0)break;const take=Math.min(remaining,Number(b.qty));b.qty-=take;const moved={...b,id:crypto.randomUUID(),location:to,qty:take,barcode:"SHB"+crypto.randomUUID().replace(/-/g,"").slice(0,12).toUpperCase(),source:"transfer",transferredFromBatchId:b.id,createdAt:new Date().toISOString()};db.batches.push(moved);allocations.push({sourceBatchId:b.id,batchId:moved.id,qty:take,unitCost:b.unitCost,costVerified:b.costVerified});remaining-=take;}
+if(remaining>0){const movedId=crypto.randomUUID();db.batches.push({id:movedId,productId:p.id,location:to,qty:remaining,unitCost:null,source:"transfer-untracked",costVerified:false,barcode:"SHB"+crypto.randomUUID().replace(/-/g,"").slice(0,12).toUpperCase(),createdAt:new Date().toISOString(),legacy:true});allocations.push({sourceBatchId:null,batchId:movedId,qty:remaining,unitCost:null,costVerified:false});}
+src.qty-=qty;let dst=db.accessories.find(x=>x.productId===p.id&&x.location===to);if(dst){dst.qty+=qty;dst.batchIds=dst.batchIds||[];dst.batchIds.push(...allocations.map(x=>x.batchId));}else db.accessories.push({productId:p.id,location:to,qty,batchIds:allocations.map(x=>x.batchId)});t.qty=qty;t.batchAllocations=allocations;
 }
 db.transfers.push(t);save();e.target.reset();render();alert("Transfer completed successfully");
 };
