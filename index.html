@@ -550,13 +550,13 @@ return "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 "+(x+10)+" 50'><rec
 }
 function renderBarcodeOptions(){
 const ps=$("barcodeProduct"),ls=$("barcodeLocation"),it=$("barcodeItem");if(!ps||!ls||!it)return;
-const a=ps.value,b=ls.value,c=it.value;
+const selectedProduct=ps.value,selectedItem=it.value;
 ps.innerHTML=db.products.map(p=>"<option value='"+esc(p.id)+"'>"+esc(pname(p))+"</option>").join("");
-ls.innerHTML=locations.map(l=>"<option value='"+esc(l)+"'>"+esc(l)+"</option>").join("");
-if(db.products.some(p=>p.id===a))ps.value=a;if(locations.includes(b))ls.value=b;
-const p=product(ps.value),items=p&&p.type==="mobile"?db.devices.filter(d=>d.productId===p.id&&d.location===ls.value).map(d=>({id:d.id,code:d.imei})):p?[{id:"product",code:p.barcode||""}]:[];
+if(db.products.some(p=>p.id===selectedProduct))ps.value=selectedProduct;
+ls.innerHTML="<option value='"+esc(activeLocation)+"'>"+esc(activeLocation)+"</option>";ls.value=activeLocation;
+const p=product(ps.value),items=p&&p.type==="mobile"?db.devices.filter(d=>d.productId===p.id&&d.location===activeLocation).map(d=>({id:d.id,code:d.imei})):p?[{id:"product",code:p.barcode||""}]:[];
 it.innerHTML=items.map(x=>"<option value='"+esc(x.id)+"' data-code='"+esc(x.code)+"'>"+esc(x.code||"Barcode missing")+"</option>").join("");
-if(items.some(x=>x.id===c))it.value=c;
+if(items.some(x=>x.id===selectedItem))it.value=selectedItem;
 }
 function printBarcodeLabel(){
 const p=product($("barcodeProduct").value),o=$("barcodeItem").selectedOptions[0];if(!p||!o)return alert("Product/location stock select karein.");
