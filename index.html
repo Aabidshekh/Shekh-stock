@@ -72,6 +72,7 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 <button onclick="show('reports')">Reports</button>
 <button onclick="show('backup')">Backup & Restore</button>
 <button onclick="show('purchase')">Purchase</button>
+<button onclick="show('categories')">Category Manager</button>
 </nav>
 <main>
 <section id="dashboard" class="active">
@@ -122,8 +123,9 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
 </form>
 </div>
 </section>
-<section id="barcodes"><h2>Barcode Generate & Print</h2><div class="panel"><form id="barcodeForm"><label>Product</label><select id="barcodeProduct"></select><label>Location</label><select id="barcodeLocation"></select><label>Barcode Item</label><select id="barcodeItem"></select><label>Copies</label><input id="barcodeCopies" type="number" min="1" max="100" value="1"><label>Label Size</label><select id="barcodeSize"><option value="50x30">50 x 30 mm</option><option value="70x35">70 x 35 mm</option></select><button type="submit">Print Barcode Label</button></form></div></section><section id="productList">
-<h2>Product List & Current Stock</h2>
+<section id="barcodes"><h2>Barcode Generate & Print</h2><div class="panel"><form id="barcodeForm"><label>Product</label><select id="barcodeProduct"></select><label>Location</label><select id="barcodeLocation"></select><label>Barcode Item</label><select id="barcodeItem"></select><label>Copies</label><input id="barcodeCopies" type="number" min="1" max="100" value="1"><label>Label Size</label><select id="barcodeSize"><option value="50x30">50 x 30 mm</option><option value="70x35">70 x 35 mm</option></select><button type="submit">Print Barcode Label</button></form></div></section><section id="categories">
+<h2>Category Management</h2>
+<p class="muted">Categories ko yahan alag se manage karein. Product List mein category delete/edit controls nahi honge.</p>
 <div class="panel category-manager">
   <div class="category-manager-head"><div><h3>Category Manager</h3><p class="muted">Manage categories for <strong id="categoryManagerLocation"></strong>. Categories are kept separate by location.</p></div><span class="category-manager-count" id="categoryManagerCount">0 categories</span></div>
   <form id="categoryManagerForm" class="category-manager-form">
@@ -134,6 +136,9 @@ th,td{text-align:left;padding:11px;border-bottom:1px solid #34445b}
   <div id="categoryManagerList" class="category-manager-list"></div>
   <p class="muted category-manager-note">Note: A category with products or stock assigned cannot be deleted. Change or remove those products first.</p>
 </div>
+</section>
+<section id="productList">
+<h2>Product List & Current Stock</h2>
 <p class="muted">Products pehle category-wise dikhte hain. Category par click karke uske andar ke products aur stock details dekhein.</p>
 <div class="panel"><h3>Manage Products</h3><p class="muted">Yahan se product details edit karein. Delete sirf tab hoga jab product ka stock zero ho aur uska koi transaction history record na ho.</p><input id="manageProductSearch" placeholder="Search product, brand, model or barcode" oninput="renderProductManager()"><div class="tablewrap"><table><thead><tr><th>Icon</th><th>Product</th><th>Category</th><th>Type</th><th>Current Location Stock</th><th>Barcode / SKU</th><th>Action</th></tr></thead><tbody id="productManageRows"></tbody></table></div></div>
 <div class="panel" id="productEditPanel" style="display:none"><h3>Edit Product</h3><form id="productEditForm"><input id="editProductId" type="hidden"><label>Product Name</label><input id="editProductName" required maxlength="100"><div class="row"><div><label>Brand</label><input id="editProductBrand"></div><div><label>Model / Category</label><input id="editProductModel"></div></div><div class="row"><div><label>Selling Price (₹)</label><input id="editProductSalePrice" type="number" min="0" step="0.01" required></div><div><label>Purchase Price (₹)</label><input id="editProductPurchasePrice" type="number" min="0" step="0.01"></div></div><div class="row"><div><label>Minimum Stock Alert</label><input id="editProductMinStock" type="number" min="0" step="1"></div><div><label>Barcode / SKU</label><input id="editProductBarcode" maxlength="80"></div></div><label>Category</label><input id="editProductCategory" list="productCategoryOptions" required><label>Product Icon</label><select id="editProductIcon" onchange="toggleEditCustomIcon()"><option value="phone">Mobile phone</option><option value="charger">Fast charger / adapter</option><option value="earbuds">Earbuds / headphones</option><option value="battery">Battery / power bank</option><option value="box">Accessories / other</option><option value="case">Cover / glass</option><option value="watch">Smartwatch</option><option value="laptop">Laptop / tablet</option><option value="parts">Repair parts</option><option value="gadget">Gadget</option><option value="custom">Other — choose your own emoji</option></select><div id="editCustomIconWrap" style="display:none"><label>Choose Your Icon (Emoji)</label><input id="editCustomIcon" maxlength="8" placeholder="e.g. 🖨️ 💡 🎮 🔊"></div><button type="submit">Save Changes</button> <button type="button" class="secondary" onclick="cancelProductEdit()">Cancel</button></form></div>
@@ -735,12 +740,14 @@ $("categoryManagerName").focus();
 }
 function deleteCategoryByName(category){
 const assigned=catalogProducts(activeLocation).filter(p=>productCategory(p)===category);
+const inStock=assigned.filter(p=>productLocationQty(p,activeLocation)>0);
 if(assigned.length){
- const inStock=assigned.filter(p=>productLocationQty(p,activeLocation)>0);
- if(inStock.length)return alert('"'+category+'" delete nahi ho sakti: '+inStock.length+' product(s) ka stock is location mein hai.');
- return alert('"'+category+'" delete nahi ho sakti: '+assigned.length+' product(s) abhi is category se linked hain. Pehle Product Edit se unki category change karein.');
+ const details=inStock.length?inStock.length+" product(s) ka stock bhi maujood hai.":"Is category se "+assigned.length+" product(s) linked hain.";
+ return alert("WARNING: CATEGORY DELETE NAHI HO SAKTI\n\n"+details+"\n\nPehle in products ki category change karein ya unhe is location se remove karein. Product, stock aur history delete nahi ki jayegi.");
 }
-if(!confirm('"'+category+'" category ko sirf '+activeLocation+' se delete karna hai? Dusri locations par iska data affect nahi hoga.'))return;
+const warning="WARNING: Aap '"+category+"' category ko '"+activeLocation+"' se delete karne ja rahe hain.\n\n• Ye category sirf isi location se remove hogi.\n• Doosri locations ki category par asar nahi padega.\n• Koi product, stock ya transaction history delete nahi hogi.\n• Zarurat padne par category dobara bana sakte hain.\n\nKya aap waqai ise delete karna chahte hain?";
+if(!confirm(warning))return;
+if(!confirm("FINAL CONFIRMATION\n\n'"+category+"' ko '"+activeLocation+"' se delete kar dein?"))return;
 if(Array.isArray(db.categoryLocations?.[category])){
  db.categoryLocations[category]=db.categoryLocations[category].filter(loc=>loc!==activeLocation);
  if(!db.categoryLocations[category].length)delete db.categoryLocations[category];
@@ -748,30 +755,8 @@ if(Array.isArray(db.categoryLocations?.[category])){
 db.categories=(db.categories||[]).filter(c=>c!==category);
 if(editingCategoryName===category)cancelCategoryEdit();
 save();render();
+alert("'"+category+"' category '"+activeLocation+"' se delete ho gayi. Product aur stock data safe hai.");
 }
-$("categoryManagerForm")?.addEventListener("submit",e=>{
- e.preventDefault();
- const name=$("categoryManagerName").value.trim();
- if(!name)return alert("Category name enter karein.");
- const existing=catalogCategories(activeLocation);
- if(editingCategoryName){
-  if(existing.some(c=>c.toLowerCase()===name.toLowerCase()&&c!==editingCategoryName))return alert("Is naam ki category pehle se maujood hai.");
-  const old=editingCategoryName;
-  if(db.products.some(p=>productCategory(p)===old))return alert("Is category se products linked hain. Product Edit se category change karein.");
-  db.categoryLocations[old]=(db.categoryLocations[old]||[]).filter(loc=>loc!==activeLocation);
-  if(!db.categoryLocations[old].length)delete db.categoryLocations[old];
-  if(!Array.isArray(db.categoryLocations[name]))db.categoryLocations[name]=[];
-  if(!db.categoryLocations[name].includes(activeLocation))db.categoryLocations[name].push(activeLocation);
-  cancelCategoryEdit();
- }else{
-  if(existing.some(c=>c.toLowerCase()===name.toLowerCase()))return alert("Ye category is location mein pehle se maujood hai.");
-  if(!Array.isArray(db.categoryLocations[name]))db.categoryLocations[name]=[];
-  if(!db.categoryLocations[name].includes(activeLocation))db.categoryLocations[name].push(activeLocation);
-  if(!db.categories.includes(name))db.categories.push(name);
-  $("categoryManagerName").value="";
- }
- save();render();
-});
 function deleteUnusedCategory(){
 const currentCategories=catalogCategories(activeLocation);
 if(!currentCategories.length)return alert("Is location mein koi category available nahi hai.");
